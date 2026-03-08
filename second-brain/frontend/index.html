@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="/css/components.css">
     <link rel="stylesheet" href="/css/toolbar.css">
     <link rel="stylesheet" href="/css/template-modal.css">
+    <link rel="stylesheet" href="/css/graph-filter.css">
 
     <!-- Marked.js -->
     <script src="https://cdn.jsdelivr.net/npm/marked@15.0.0/marked.min.js"></script>
@@ -157,9 +158,39 @@
                     </div>
                 </div>
 
-                <!-- Graph view (hidden by default) -->
                 <div class="graph-container hidden" id="graph-view">
+                    <!-- Graph Filter Panel -->
+                    <div class="graph-filter-panel collapsed" id="graph-filter-panel">
+                        <div class="graph-filter-header">
+                            <span>Filters</span>
+                            <button id="btn-close-graph-filter" title="Close filter panel">
+                                <i data-lucide="x" style="width:14px;height:14px"></i>
+                            </button>
+                        </div>
+                        <div class="graph-filter-section">
+                            <label>Tags</label>
+                            <div class="graph-filter-tags" id="graph-filter-tags"></div>
+                        </div>
+                        <div class="graph-filter-section">
+                            <label>Folder</label>
+                            <select class="graph-filter-select" id="graph-filter-folder">
+                                <option value="">All folders</option>
+                            </select>
+                        </div>
+                        <div class="graph-filter-section">
+                            <label>Depth (hops): <span id="graph-filter-depth-val">0</span></label>
+                            <input type="range" class="graph-filter-range" id="graph-filter-depth" min="0" max="3" value="0">
+                        </div>
+                        <div class="graph-filter-actions">
+                            <button class="graph-filter-btn secondary" id="btn-graph-filter-reset">Reset</button>
+                            <button class="graph-filter-btn primary" id="btn-graph-filter-apply">Apply</button>
+                        </div>
+                    </div>
+
                     <div class="graph-controls">
+                        <button class="icon-btn" id="btn-graph-filter-toggle" title="Toggle filter panel">
+                            <i data-lucide="filter"></i>
+                        </button>
                         <button class="icon-btn" id="btn-graph-zoom-in" title="Zoom in">
                             <i data-lucide="zoom-in"></i>
                         </button>

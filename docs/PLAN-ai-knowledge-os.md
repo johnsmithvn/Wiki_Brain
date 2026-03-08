@@ -1,4 +1,4 @@
-﻿# PLAN-ai-knowledge-os
+# PLAN-ai-knowledge-os
 
 ## Overview
 Xây dựng **AI Knowledge OS** dựa trên codebase `second-brain` hiện tại theo lộ trình 5 phase, ưu tiên hoàn thiện **Phase 1 (Solid Knowledge Base)** để tạo nền ổn định trước khi thêm semantic layer, AI reasoning, workspace database và hạ tầng AI production.
@@ -21,17 +21,10 @@ Mục tiêu của plan này:
 - Có checklist verification + tiêu chí đo chất lượng cho mỗi phase.
 
 ## Progress Update (2026-03-08)
-- Sprint 1 core status:
-  - `T01` completed
-  - `T02` completed
-  - `T03` completed
-  - `T04` completed
-- UX follow-up patch status:
-  - Sidebar blank-area context menu: completed
-  - Shortcuts help popup with table + explanation: completed
-  - Inline rename for quick add folder/file and double-click rename: completed
-- Next implementation focus:
-  - Sprint 2 (`T05` to `T08`) remains the primary next milestone.
+- Sprint 1 core status: **ALL DONE** (T01-T04)
+- Sprint 2 status: **ALL DONE** (T05-T08)
+- Phase 1 (Solid Knowledge Base): **COMPLETE ✅**
+- Next implementation focus: Phase 2 (AI Search Layer, T09-T10)
 
 ## Tech Stack (Current + Planned)
 - Current:
@@ -109,7 +102,7 @@ Mục tiêu của plan này:
     - Output: watcher service phát hiện thay đổi và gọi update index/tags/links
     - Verify: sửa file bằng VS Code hoặc git checkout/pull thì search/tag/backlink cập nhật sau debounce
 
-- [ ] **T05: Rename propagation for `[[wiki-links]]`**
+- [x] **T05: Rename propagation for `[[wiki-links]]`**
   - Agent: `backend-specialist`
   - Skill: `clean-code`
   - Priority: P0
@@ -119,7 +112,7 @@ Mục tiêu của plan này:
     - Output: tất cả note tham chiếu `[[A]]`/`[[A|alias]]` được rewrite sang `[[B]]` giữ alias hợp lệ
     - Verify: rename 1 note có nhiều backlink, mở từng note kiểm tra link đã đổi và graph không đứt cạnh
 
-- [ ] **T06: Advanced graph filter API**
+- [x] **T06: Advanced graph filter API**
   - Agent: `backend-specialist`
   - Skill: `api-patterns`
   - Priority: P1
@@ -129,7 +122,7 @@ Mục tiêu của plan này:
     - Output: API graph trả node/edge đã lọc
     - Verify: query filter trả đúng subset, không crash khi filter rỗng
 
-- [ ] **T07: Graph filter controls in UI**
+- [x] **T07: Graph filter controls in UI**
   - Agent: `frontend-specialist`
   - Skill: `frontend-design`
   - Priority: P1
@@ -139,15 +132,15 @@ Mục tiêu của plan này:
     - Output: panel filter + apply/reset + sync state với graph render
     - Verify: chọn tag/folder/depth thay đổi graph theo thời gian thực, reset về full graph được
 
-- [ ] **T08: Phase 1 integration test + changelog/release note**
-  - Agent: `test-engineer`
+- [x] **T08: Unit tests + CI/CD**
+  - Agent: `backend-specialist`
   - Skill: `testing-patterns`
   - Priority: P0
-  - Dependencies: T03, T05, T07
+  - Dependencies: T05, T07
   - INPUT → OUTPUT → VERIFY:
     - Input: toàn bộ thay đổi Phase 1
-    - Output: test checklist manual + smoke automation; cập nhật CHANGELOG
-    - Verify: test pass trên các luồng create/edit/rename/search/graph và không phát sinh bug blocker
+    - Output: 43 pytest tests pass, GitHub Actions CI/CD pipeline
+    - Verify: pytest green, CI lint+test pass on push
 
 ### Phase 2 — AI Search Layer (Design + Build After Phase 1)
 

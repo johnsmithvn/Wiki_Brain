@@ -119,6 +119,74 @@ class LinkService:
                         edges.append(GraphEdge(source=source, target=target))
 
         return GraphData(nodes=nodes, edges=edges)
+    def get_filtered_graph(
+        self,
+        tags: list[str] | None = None,
+        folders: list[str] | None = None,
+        depth: int = 0,
+        tag_lookup: dict[str, set[str]] | None = None,
+    ) -> GraphData:
+        """Return graph data filtered by tags, folders, and/or depth.
+
+        Args:
+            tags: Only include nodes that have at least one of these tags.
+            folders: Only include nodes whose path starts with one of these prefixes.
+            depth: If > 0, expand the filtered set by N hops of connections.
+            tag_lookup: path → set[tag] mapping (injected from tag_service).
+        """
+        has_filters = bool(tags) or bool(folders)
+        if not has_filters:
+            return self.get_graph_data()
+
+        with self._lock:
+            # Step 1: Collect seed nodes matching filters
+            seed_paths: set[str] = set()
+
+            for path in self._all_paths:
+                match = True
+                if tags:
+                    note_tags = tag_lookup.get(path, set()) if tag_lookup else set()
+                    if not note_tags.intersection(t.lower() for t in tags):
+                        match = False
+                if folders and match:
+                    normalized = path.replace("\\", "/")
+                    if not any(normalized.startswith(f.rstrip("/") + "/") or normalized == f for f in folders):
+                        match = False
+                if match:
+                    seed_paths.add(path)
+
+            # Step 2: Expand by depth hops
+            visible: set[str] = set(seed_paths)
+            if depth > 0:
+                frontier = set(seed_paths)
+                for _ in range(depth):
+                    next_frontier: set[str] = set()
+                    for p in frontier:
+                        for linked in self._forward.get(p, set()):
+                            if linked not in visible:
+                                next_frontier.add(linked)
+                        for linked in self._backward.get(p, set()):
+                            if linked not in visible:
+                                next_frontier.add(linked)
+                    visible.update(next_frontier)
+                    frontier = next_frontier
+
+            # Step 3: Build nodes + edges from visible set
+            nodes: list[GraphNode] = []
+            edges: list[GraphEdge] = []
+
+            for path in visible:
+                stem = path.rsplit("/", 1)[-1].replace(".md", "")
+                link_count = len(self._forward.get(path, set())) + len(self._backward.get(path, set()))
+                group = "seed" if path in seed_paths else "expanded"
+                nodes.append(GraphNode(id=path, label=stem, group=group, size=max(1, link_count)))
+
+            for source in visible:
+                for target in self._forward.get(source, set()):
+                    if target in visible:
+                        edges.append(GraphEdge(source=source, target=target))
+
+        return GraphData(nodes=nodes, edges=edges)
 
 
 link_service = LinkService()

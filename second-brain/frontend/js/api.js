@@ -51,7 +51,14 @@ export const api = {
     search: (query, limit = 20) => request(`/search?q=${encodeURIComponent(query)}&limit=${limit}`),
 
     // Graph
-    getGraph: () => request('/graph'),
+    getGraph: (filters = {}) => {
+        const params = new URLSearchParams();
+        if (filters.tags?.length) filters.tags.forEach(t => params.append('tags', t));
+        if (filters.folders?.length) filters.folders.forEach(f => params.append('folders', f));
+        if (filters.depth > 0) params.set('depth', String(filters.depth));
+        const qs = params.toString();
+        return request(`/graph${qs ? '?' + qs : ''}`);
+    },
     getLocalGraph: (path, depth = 1) => request(`/graph/${encodeURI(path)}?depth=${depth}`),
 
     // Tags

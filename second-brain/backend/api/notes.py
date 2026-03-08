@@ -16,6 +16,8 @@ from backend.services.index_service import index_service
 from backend.services.link_service import link_service
 from backend.services.tag_service import tag_service
 
+from backend.services.rename_service import rename_service
+
 router = APIRouter(prefix="/api/notes", tags=["notes"])
 
 
@@ -110,6 +112,9 @@ async def delete_note(path: str):
 async def rename_note(path: str, data: NoteRename):
     try:
         content = await file_service.read_file(path)
+        # Propagate wiki-link rewrites BEFORE removing old index entries
+        updated_count = await rename_service.propagate_rename(path, data.new_path)
+
         metadata = await file_service.rename_file(path, data.new_path)
         # Update index references
         index_service.remove_note(path)

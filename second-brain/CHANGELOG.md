@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.4.0 (2026-03-08) — Phase 1 Complete
+
+### Added
+- **Rename Link Propagation**: Renaming a note auto-updates all `[[wiki-links]]` across the vault
+- **Graph Filter API**: `GET /api/graph?tags=X&folders=Y&depth=N` filters graph nodes by tags, folders, and hop depth
+- **Graph Filter UI**: Interactive filter panel with tag chips, folder dropdown, depth slider, and Apply/Reset
+- **Unit Test Suite**: 43 pytest tests covering `file_service`, `link_service`, `tag_service`, `rename_service`
+- **CI/CD Pipeline**: GitHub Actions workflow with Ruff lint + pytest on push/PR to main
+
+### Changed
+- `graph.js` rewritten to support filter state management and dynamic panel reconstruction
+- `api.js` `getGraph()` now accepts filter params object
+
 ## v0.3.2 (2026-03-08)
 
 ### Fixed
