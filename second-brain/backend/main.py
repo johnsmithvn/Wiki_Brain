@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from backend.api import graph, notes, search, tags
+from backend.api import assets, daily, graph, notes, search, tags
 from backend.config import settings
 from backend.services.file_service import file_service
 from backend.services.index_service import index_service
@@ -105,11 +105,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.middleware("http")
+async def add_cache_control_header(request, call_next):
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
 # API routes
 app.include_router(notes.router)
 app.include_router(search.router)
 app.include_router(graph.router)
 app.include_router(tags.router)
+app.include_router(daily.router)
+app.include_router(assets.router)
+
+# Serve uploaded assets
+assets_dir = settings.KNOWLEDGE_DIR / "_assets"
+assets_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/api/assets/files", StaticFiles(directory=str(assets_dir)), name="assets")
 
 # Serve frontend
 frontend_dir = Path(__file__).resolve().parent.parent / "frontend"

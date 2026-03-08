@@ -10,6 +10,7 @@ let treeData = [];
 let tagData = [];
 let onNoteSelect = null;
 let onNewNote = null;
+let dragSourcePath = null;  // For drag & drop
 
 export function initSidebar({ onSelect, onNew }) {
     onNoteSelect = onSelect;
@@ -60,8 +61,9 @@ function buildTreeNodes(items, parent, depth) {
             const folderEl = document.createElement('div');
 
             const toggle = document.createElement('div');
-            toggle.className = 'tree-item';
+            toggle.className = 'tree-item tree-folder-item';
             toggle.style.paddingLeft = `${16 + depth * 16}px`;
+            toggle.dataset.folderPath = item.path;
             toggle.innerHTML = `
                 <span class="tree-folder-toggle open"><i data-lucide="chevron-right" style="width:12px;height:12px"></i></span>
                 <i data-lucide="folder" style="width:14px;height:14px;color:var(--accent);opacity:0.7"></i>
@@ -87,6 +89,11 @@ function buildTreeNodes(items, parent, depth) {
                 ]);
             });
 
+            // Drop target
+            toggle.addEventListener('dragover', (e) => { e.preventDefault(); toggle.classList.add('drag-over'); });
+            toggle.addEventListener('dragleave', () => toggle.classList.remove('drag-over'));
+            toggle.addEventListener('drop', (e) => { e.preventDefault(); toggle.classList.remove('drag-over'); handleDrop(item.path); });
+
             folderEl.appendChild(toggle);
             folderEl.appendChild(children);
             parent.appendChild(folderEl);
@@ -95,6 +102,8 @@ function buildTreeNodes(items, parent, depth) {
             noteEl.className = 'tree-item';
             if (item.path === activeNotePath) noteEl.classList.add('active');
             noteEl.style.paddingLeft = `${16 + depth * 16}px`;
+            noteEl.draggable = true;
+            noteEl.dataset.path = item.path;
             noteEl.innerHTML = `
                 <i data-lucide="file-text" style="width:14px;height:14px"></i>
                 <span>${escapeHtml(item.name)}</span>
@@ -102,6 +111,15 @@ function buildTreeNodes(items, parent, depth) {
             noteEl.addEventListener('click', () => {
                 if (onNoteSelect) onNoteSelect(item.path);
             });
+
+            // Drag start
+            noteEl.addEventListener('dragstart', (e) => {
+                dragSourcePath = item.path;
+                noteEl.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', item.path);
+            });
+            noteEl.addEventListener('dragend', () => noteEl.classList.remove('dragging'));
 
             // Context menu on notes
             noteEl.addEventListener('contextmenu', (e) => {
@@ -128,46 +146,97 @@ function renderTags(tags) {
         return;
     }
 
-    const MAX_VISIBLE = 9; // ~3 rows of tags
+    const MAX_VISIBLE = 9;
     const visibleTags = tags.slice(0, MAX_VISIBLE);
     const hiddenCount = tags.length - MAX_VISIBLE;
 
-    const buildChips = (tagList) => tagList.map(t =>
-        `<span class="tag-chip" data-tag="${escapeHtml(t.name)}">#${escapeHtml(t.name)} <span class="tag-count">${t.count}</span></span>`
-    ).join('');
+    container.innerHTML = '';
+    const chipRow = document.createElement('div');
+    chipRow.className = 'tag-chips-row';
+    chipRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:var(--sp-1);';
 
-    container.innerHTML = buildChips(visibleTags);
+    const buildChip = (t) => {
+        const chip = document.createElement('span');
+        chip.className = 'tag-chip';
+        chip.dataset.tag = t.name;
+        chip.innerHTML = `#${escapeHtml(t.name)} <span class="tag-count">${t.count}</span>`;
+        chip.addEventListener('click', () => toggleTagExplorer(t.name, chip, container));
+        return chip;
+    };
+
+    visibleTags.forEach(t => chipRow.appendChild(buildChip(t)));
 
     if (hiddenCount > 0) {
         const moreChip = document.createElement('span');
         moreChip.className = 'tag-chip tag-more';
         moreChip.textContent = `+${hiddenCount} more`;
         moreChip.addEventListener('click', () => {
-            // Expand: show all tags
-            container.innerHTML = buildChips(tags);
+            chipRow.innerHTML = '';
+            tags.forEach(t => chipRow.appendChild(buildChip(t)));
             const collapseChip = document.createElement('span');
             collapseChip.className = 'tag-chip tag-more';
             collapseChip.textContent = '− collapse';
             collapseChip.addEventListener('click', () => renderTags(tags));
-            container.appendChild(collapseChip);
-            attachTagClickHandlers(container);
+            chipRow.appendChild(collapseChip);
         });
-        container.appendChild(moreChip);
+        chipRow.appendChild(moreChip);
     }
 
-    attachTagClickHandlers(container);
+    container.appendChild(chipRow);
 }
 
-function attachTagClickHandlers(container) {
-    container.querySelectorAll('.tag-chip:not(.tag-more)').forEach(chip => {
-        chip.addEventListener('click', () => {
-            const searchInput = document.getElementById('search-input');
-            document.getElementById('search-modal').classList.remove('hidden');
-            searchInput.value = `#${chip.dataset.tag}`;
-            searchInput.dispatchEvent(new Event('input'));
-            searchInput.focus();
+async function toggleTagExplorer(tagName, chipEl, container) {
+    // Remove existing tag-explorer panels
+    container.querySelectorAll('.tag-explorer-panel').forEach(p => p.remove());
+
+    // If this chip is already expanded, just close
+    if (chipEl.classList.contains('tag-expanded')) {
+        chipEl.classList.remove('tag-expanded');
+        return;
+    }
+    // Close any other expanded
+    container.querySelectorAll('.tag-expanded').forEach(c => c.classList.remove('tag-expanded'));
+    chipEl.classList.add('tag-expanded');
+
+    try {
+        const notes = await api.getNotesByTag(tagName);
+        const panel = document.createElement('div');
+        panel.className = 'tag-explorer-panel';
+        panel.style.cssText = 'width:100%;padding:var(--sp-1) 0;';
+
+        (notes || []).forEach(note => {
+            const item = document.createElement('div');
+            item.className = 'tree-item';
+            item.style.cssText = 'padding-left:var(--sp-4);font-size:var(--text-xs);';
+            item.innerHTML = `<i data-lucide="file-text" style="width:12px;height:12px"></i> <span>${escapeHtml(note.title || note.path)}</span>`;
+            item.addEventListener('click', () => { if (onNoteSelect) onNoteSelect(note.path); });
+            panel.appendChild(item);
         });
-    });
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+
+        // Insert panel right after the chip row
+        container.appendChild(panel);
+    } catch (e) {
+        console.error('Failed to load tag notes:', e);
+    }
+}
+
+async function handleDrop(targetFolderPath) {
+    if (!dragSourcePath) return;
+    const fileName = dragSourcePath.split('/').pop();
+    const newPath = `${targetFolderPath}/${fileName}`;
+
+    if (newPath === dragSourcePath) return; // Same location
+
+    try {
+        await api.renameNote(dragSourcePath, newPath);
+        showToast(`Moved to ${targetFolderPath}`, 'success');
+        await loadTree();
+    } catch (e) {
+        showToast(`Move failed: ${e.message}`, 'error');
+    }
+    dragSourcePath = null;
 }
 
 export function setActiveNote(path) {

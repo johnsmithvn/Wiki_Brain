@@ -52,4 +52,20 @@ export const api = {
     // Tags
     getTags: () => request('/tags'),
     getNotesByTag: (tag) => request(`/tags/${encodeURIComponent(tag)}`),
+
+    // Daily
+    getDailyToday: () => request('/daily/today'),
+    listDailyNotes: () => request('/daily/list'),
+
+    // Assets
+    uploadImage: async (file) => {
+        const form = new FormData();
+        form.append('file', file);
+        const res = await fetch(`${BASE}/assets/upload`, { method: 'POST', body: form });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({ detail: res.statusText }));
+            throw new Error(err.detail || `HTTP ${res.status}`);
+        }
+        return res.json();
+    },
 };

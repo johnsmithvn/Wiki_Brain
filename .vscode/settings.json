@@ -1,0 +1,8 @@
+{
+    "python.analysis.extraPaths": [
+        "./second-brain"
+    ],
+    "python.autoComplete.extraPaths": [
+        "./second-brain"
+    ]
+}

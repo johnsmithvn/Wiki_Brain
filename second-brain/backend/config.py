@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     APP_NAME: str = "Second Brain"
-    APP_VERSION: str = "0.1.0"
+    APP_VERSION: str = "0.2.0"
     HOST: str = "127.0.0.1"
     PORT: int = 8000
     KNOWLEDGE_DIR: Path = Path(__file__).resolve().parent.parent / "knowledge"

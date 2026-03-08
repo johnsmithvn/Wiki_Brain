@@ -1,6 +1,11 @@
 // ============================================
-// Markdown Editor - CodeMirror 6 Integration
+// Markdown Editor - Textarea with toolbar + image paste + slash menu
 // ============================================
+
+import { api } from './api.js';
+import { setActiveTextarea } from './toolbar.js';
+import { attachSlashMenu, detachSlashMenu } from './slash-menu.js';
+import { showToast } from './sidebar.js';
 
 let editorView = null;
 let splitEditorView = null;
@@ -15,7 +20,6 @@ export async function createEditor(container, content = '') {
     currentContent = content;
     container.innerHTML = '';
 
-    // Use a simple textarea-based editor as CodeMirror 6 CDN bundles vary
     const wrapper = document.createElement('div');
     wrapper.style.cssText = 'height:100%;display:flex;flex-direction:column;';
 
@@ -31,7 +35,7 @@ export async function createEditor(container, content = '') {
         border: none;
         outline: none;
         resize: none;
-        padding: 32px 48px;
+        padding: 24px 48px;
         font-family: var(--font-mono);
         font-size: var(--text-base);
         line-height: 1.75;
@@ -58,6 +62,7 @@ export async function createEditor(container, content = '') {
         }
     });
 
+    // Debounced input
     let debounceTimer = null;
     textarea.addEventListener('input', () => {
         currentContent = textarea.value;
@@ -67,14 +72,47 @@ export async function createEditor(container, content = '') {
         }, 500);
     });
 
+    // Image paste handler
+    textarea.addEventListener('paste', async (e) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+
+        for (const item of items) {
+            if (item.type.startsWith('image/')) {
+                e.preventDefault();
+                const file = item.getAsFile();
+                if (!file) return;
+
+                try {
+                    const result = await api.uploadImage(file);
+                    const markdownImg = `![image](${result.url})`;
+                    const start = textarea.selectionStart;
+                    textarea.value = textarea.value.substring(0, start) + markdownImg + textarea.value.substring(textarea.selectionEnd);
+                    textarea.selectionStart = textarea.selectionEnd = start + markdownImg.length;
+                    textarea.dispatchEvent(new Event('input'));
+                    showToast('Image pasted!', 'success');
+                } catch (err) {
+                    showToast(`Image upload failed: ${err.message}`, 'error');
+                }
+                return;
+            }
+        }
+    });
+
     wrapper.appendChild(textarea);
     container.appendChild(wrapper);
 
+    // Register with toolbar and slash menu
+    setActiveTextarea(textarea);
+    attachSlashMenu(textarea);
+
     // Store reference
-    if (container.id === 'editor-pane') {
-        editorView = textarea;
-    } else {
-        splitEditorView = textarea;
+    if (container.id === 'editor-pane' || container.id === 'split-editor-pane') {
+        if (container.id === 'editor-pane') {
+            editorView = textarea;
+        } else {
+            splitEditorView = textarea;
+        }
     }
 
     return textarea;
@@ -100,6 +138,7 @@ export function getWordCount() {
 }
 
 export function destroyEditor() {
+    detachSlashMenu();
     editorView = null;
     splitEditorView = null;
     currentContent = '';

@@ -10,6 +10,9 @@ import { initSearch, openSearch, closeSearch } from './search.js';
 import { initGraph, renderGraph, destroyGraph } from './graph.js';
 import { generateTOC, renderTOC } from './toc.js';
 import { showConfirm } from './modal.js';
+import { initToolbar } from './toolbar.js';
+import { initQuickCapture, openQuickCapture } from './quick-capture.js';
+import { initSlashMenu } from './slash-menu.js';
 
 // ---- State ----
 const state = {
@@ -29,6 +32,12 @@ document.addEventListener('DOMContentLoaded', () => {
     initPreview({ onLinkClick: handleWikiLinkClick, notePaths: [] });
     initSearch({ onSelect: openNote });
     initGraph({ onClick: openNote });
+    initToolbar();
+    initQuickCapture({ onCreated: (path) => { loadTree(); openNote(path); } });
+    initSlashMenu();
+
+    // Daily note button
+    document.getElementById('btn-daily-note')?.addEventListener('click', openDailyNote);
 
     // Load all note paths for link resolution
     loadAllNotePaths();
@@ -55,22 +64,13 @@ async function openNote(path) {
         return;
     }
 
+    // Fetch the note — only 404 errors should trigger creation dialog
+    let note;
     try {
-        const note = await api.getNote(path);
-        state.currentNote = note;
-        state.isDirty = false;
-        setActiveNote(path);
-        updateBreadcrumb(note);
-        updateBacklinks(note);
-
-        // Show tabs and switch to editor
-        document.getElementById('view-tabs').style.display = '';
-        switchView('editor');
-
-        // Update status bar
-        updateStatusBar(note.content);
+        note = await api.getNote(path);
     } catch (e) {
-        // Note not found - maybe it's a wiki-link to new note
+        // API error — note not found, offer to create
+        console.warn('Note not found:', path, e.message);
         const name = path.replace('.md', '');
         const shouldCreate = await showConfirm(
             `Note "${name}" doesn't exist yet. Would you like to create it?`,
@@ -88,6 +88,32 @@ async function openNote(path) {
                 showToast(`Error: ${err.message}`, 'error');
             }
         }
+        return;
+    }
+
+    // UI updates — errors here should NOT trigger creation dialog
+    try {
+        state.currentNote = note;
+        state.isDirty = false;
+        setActiveNote(path);
+        updateBreadcrumb(note);
+        updateBacklinks(note);
+
+        // Show tabs and switch to editor
+        document.getElementById('view-tabs').style.display = '';
+        switchView('editor');
+
+        // Update metadata panel
+        updateMetadata(note);
+
+        // Track recent notes
+        trackRecentNote(path, note.title);
+
+        // Update status bar
+        updateStatusBar(note.content);
+    } catch (uiErr) {
+        console.error('UI error while opening note:', uiErr);
+        showToast(`Error displaying note: ${uiErr.message}`, 'error');
     }
 }
 
@@ -155,6 +181,10 @@ function switchView(view) {
     document.getElementById('split-view').classList.add('hidden');
     document.getElementById('graph-view').classList.add('hidden');
 
+    // Show/hide toolbar (only for editor + split)
+    const toolbar = document.getElementById('editor-toolbar');
+    if (toolbar) toolbar.style.display = (view === 'editor' || view === 'split') ? '' : 'none';
+
     // Update tabs
     document.querySelectorAll('.view-tab').forEach(tab => {
         tab.classList.toggle('active', tab.dataset.view === view);
@@ -221,6 +251,16 @@ function handleWikiLinkClick(target) {
 }
 
 // ---- Helpers ----
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 async function loadAllNotePaths() {
     try {
         const notes = await api.listNotes();
@@ -280,10 +320,22 @@ function handleGlobalShortcuts(e) {
         openSearch();
         return;
     }
+    // Ctrl+Shift+N - Quick capture
+    if (e.ctrlKey && e.shiftKey && e.key === 'N') {
+        e.preventDefault();
+        openQuickCapture();
+        return;
+    }
     // Alt+N - New note (avoid Ctrl+N = Chrome new window)
     if (e.altKey && e.key === 'n') {
         e.preventDefault();
         document.getElementById('btn-new-note').click();
+        return;
+    }
+    // Alt+D - Daily note
+    if (e.altKey && e.key === 'd') {
+        e.preventDefault();
+        openDailyNote();
         return;
     }
     // Alt+B - Toggle sidebar (avoid Ctrl+B = Chrome bookmarks)
@@ -314,8 +366,40 @@ function handleGlobalShortcuts(e) {
     }
 }
 
-function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
+async function openDailyNote() {
+    try {
+        const daily = await api.getDailyToday();
+        await loadTree();
+        await openNote(daily.path);
+    } catch (e) {
+        showToast(`Error: ${e.message}`, 'error');
+    }
+}
+
+function updateMetadata(note) {
+    const panel = document.getElementById('metadata-section');
+    if (!panel) return;
+
+    const { words, chars } = getWordCount();
+    const created = note.created_at ? new Date(note.created_at).toLocaleDateString() : '—';
+    const modified = note.modified_at ? new Date(note.modified_at).toLocaleDateString() : '—';
+
+    panel.innerHTML = `
+        <div class="right-panel-title">Note Info</div>
+        <div class="metadata-row"><span class="metadata-key">Created</span><span class="metadata-value">${created}</span></div>
+        <div class="metadata-row"><span class="metadata-key">Modified</span><span class="metadata-value">${modified}</span></div>
+        <div class="metadata-row"><span class="metadata-key">Words</span><span class="metadata-value">${words}</span></div>
+        <div class="metadata-row"><span class="metadata-key">Characters</span><span class="metadata-value">${chars}</span></div>
+        <div class="metadata-row"><span class="metadata-key">Tags</span><span class="metadata-value">${(note.tags || []).length}</span></div>
+        <div class="metadata-row"><span class="metadata-key">Links</span><span class="metadata-value">${(note.forward_links || []).length}</span></div>
+        <div class="metadata-row"><span class="metadata-key">Backlinks</span><span class="metadata-value">${(note.backlinks || []).length}</span></div>
+    `;
+}
+
+function trackRecentNote(path, title) {
+    let recent = JSON.parse(localStorage.getItem('sb-recent') || '[]');
+    recent = recent.filter(r => r.path !== path);
+    recent.unshift({ path, title, time: Date.now() });
+    recent = recent.slice(0, 10);
+    localStorage.setItem('sb-recent', JSON.stringify(recent));
 }

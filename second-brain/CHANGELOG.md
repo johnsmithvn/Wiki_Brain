@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.2.1 (2026-03-08)
+
+### Fixed
+- `[object PointerEvent]` phantom folder creation bug and removed corrupted folder from disk
+- Fixed browser caching of static `.js` files by adding `Cache-Control` middleware
+- Fixed `ReferenceError: escapeHtml is not defined` that was crashing note opening
+- Fixed broad `try...catch` silencing UI rendering errors in `app.js`
+
+## v0.2.0 (2026-03-08)
+
+### Added
+- **Daily Notes** — Auto-create today's note (`daily/YYYY-MM-DD.md`) with `Alt+D`
+- **Quick Capture** — `Ctrl+Shift+N` popup appends ideas to daily note
+- **Editor Toolbar** — Bold, Italic, Code, Heading, Quote, HR, Lists, Checkbox, Link, Image
+- **Drag & Drop** — Drag notes in sidebar to reorganize into folders
+- **Slash Commands** — Type `/` in editor: todo, code, callout, table, heading, divider, quote, image, link
+- **Image Paste** — `Ctrl+V` clipboard images uploaded to `_assets/` and inserted as markdown
+- **Tag Explorer** — Click tag in sidebar to see notes inline with expand/collapse
+- **Note Metadata** — Right panel shows created, modified, words, chars, tags, links, backlinks
+- **Command Palette Upgrade** — Recent notes on open, `/` prefix for commands
+- **Assets API** — Image upload endpoint with unique filenames
+
 ## v0.1.1 (2026-03-08)
 
 ### Fixed

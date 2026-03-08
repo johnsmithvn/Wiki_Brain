@@ -1,5 +1,5 @@
 // ============================================
-// Search - Command Palette Style
+// Search + Command Palette
 // ============================================
 
 import { api } from './api.js';
@@ -20,7 +20,12 @@ export function initSearch({ onSelect }) {
     // Input handler with debounce
     input.addEventListener('input', () => {
         clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => performSearch(input.value), 250);
+        const q = input.value;
+        if (q.startsWith('/')) {
+            showCommands(q.substring(1));
+        } else {
+            debounceTimer = setTimeout(() => performSearch(q), 250);
+        }
     });
 
     // Close on Escape or click outside
@@ -47,25 +52,88 @@ export function openSearch() {
     modal.classList.remove('hidden');
     input.value = '';
     input.focus();
-    document.getElementById('search-results').innerHTML = `
-        <div style="padding:var(--sp-4);text-align:center;color:var(--text-muted);font-size:var(--text-sm)">
-            Type to search your knowledge base
-        </div>
-    `;
+    showDefaultView();
 }
 
 export function closeSearch() {
     document.getElementById('search-modal').classList.add('hidden');
 }
 
+function showDefaultView() {
+    const results = document.getElementById('search-results');
+    // Show recent notes + hint
+    const recent = JSON.parse(localStorage.getItem('sb-recent') || '[]');
+
+    let html = '';
+    if (recent.length) {
+        html += `<div style="padding:var(--sp-2) var(--sp-4);font-size:var(--text-xs);color:var(--text-muted);text-transform:uppercase;font-weight:600">Recent</div>`;
+        html += recent.slice(0, 5).map((r, i) => `
+            <div class="search-result-item${i === 0 ? ' selected' : ''}" data-path="${escapeHtml(r.path)}">
+                <div class="search-result-title">${escapeHtml(r.title || r.path)}</div>
+                <div class="search-result-path">${escapeHtml(r.path)}</div>
+            </div>
+        `).join('');
+    }
+
+    html += `
+        <div style="padding:var(--sp-2) var(--sp-4);font-size:var(--text-xs);color:var(--text-muted)">
+            Type to search · <kbd style="background:var(--bg-elevated);padding:1px 4px;border-radius:2px;font-size:10px">/</kbd> for commands
+        </div>
+    `;
+
+    results.innerHTML = html;
+    attachResultListeners(results);
+}
+
+const COMMANDS = [
+    { key: 'new', label: 'Create New Note', icon: 'file-plus', action: () => document.getElementById('btn-new-note').click() },
+    { key: 'daily', label: 'Open Daily Note', icon: 'calendar', action: () => document.getElementById('btn-daily-note')?.click() },
+    { key: 'graph', label: 'Toggle Graph View', icon: 'git-branch', action: null },
+    { key: 'capture', label: 'Quick Capture', icon: 'zap', action: null },
+    { key: 'tags', label: 'Show All Tags', icon: 'hash', action: null },
+];
+
+function showCommands(filter) {
+    const results = document.getElementById('search-results');
+    const filtered = COMMANDS.filter(c =>
+        !filter || c.key.includes(filter.toLowerCase()) || c.label.toLowerCase().includes(filter.toLowerCase())
+    );
+
+    if (!filtered.length) {
+        results.innerHTML = `<div style="padding:var(--sp-4);text-align:center;color:var(--text-muted);font-size:var(--text-sm)">No commands found</div>`;
+        return;
+    }
+
+    results.innerHTML = `
+        <div style="padding:var(--sp-2) var(--sp-4);font-size:var(--text-xs);color:var(--text-muted);text-transform:uppercase;font-weight:600">Commands</div>
+        ${filtered.map((c, i) => `
+            <div class="search-result-item${i === 0 ? ' selected' : ''}" data-command="${c.key}">
+                <div class="search-result-title">
+                    <i data-lucide="${c.icon}" style="width:14px;height:14px;margin-right:var(--sp-2);opacity:0.6"></i>
+                    ${escapeHtml(c.label)}
+                </div>
+            </div>
+        `).join('')}
+    `;
+
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+
+    results.querySelectorAll('.search-result-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const cmd = COMMANDS.find(c => c.key === item.dataset.command);
+            if (cmd?.action) { closeSearch(); cmd.action(); }
+        });
+        item.addEventListener('mouseenter', () => {
+            results.querySelectorAll('.search-result-item').forEach(el => el.classList.remove('selected'));
+            item.classList.add('selected');
+        });
+    });
+}
+
 async function performSearch(query) {
     const results = document.getElementById('search-results');
     if (!query.trim()) {
-        results.innerHTML = `
-            <div style="padding:var(--sp-4);text-align:center;color:var(--text-muted);font-size:var(--text-sm)">
-                Type to search your knowledge base
-            </div>
-        `;
+        showDefaultView();
         return;
     }
 
@@ -88,16 +156,7 @@ async function performSearch(query) {
             </div>
         `).join('');
 
-        results.querySelectorAll('.search-result-item').forEach(item => {
-            item.addEventListener('click', () => {
-                if (onResultSelect) onResultSelect(item.dataset.path);
-                closeSearch();
-            });
-            item.addEventListener('mouseenter', () => {
-                results.querySelectorAll('.search-result-item').forEach(el => el.classList.remove('selected'));
-                item.classList.add('selected');
-            });
-        });
+        attachResultListeners(results);
     } catch (e) {
         results.innerHTML = `
             <div style="padding:var(--sp-4);text-align:center;color:var(--text-muted);font-size:var(--text-sm)">
@@ -105,6 +164,19 @@ async function performSearch(query) {
             </div>
         `;
     }
+}
+
+function attachResultListeners(results) {
+    results.querySelectorAll('.search-result-item').forEach(item => {
+        item.addEventListener('click', () => {
+            if (onResultSelect && item.dataset.path) onResultSelect(item.dataset.path);
+            closeSearch();
+        });
+        item.addEventListener('mouseenter', () => {
+            results.querySelectorAll('.search-result-item').forEach(el => el.classList.remove('selected'));
+            item.classList.add('selected');
+        });
+    });
 }
 
 function navigateResults(direction) {

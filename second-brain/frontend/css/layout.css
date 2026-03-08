@@ -232,6 +232,22 @@
     font-size: 10px;
 }
 
+.tag-chip.tag-expanded {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+}
+
+/* === DRAG & DROP === */
+.tree-item.dragging {
+    opacity: 0.4;
+}
+
+.tree-item.drag-over {
+    background: var(--accent-soft) !important;
+    border-radius: var(--radius-sm);
+    box-shadow: inset 0 0 0 1px var(--accent);
+}
+
 /* === MAIN CONTENT === */
 .main-area {
     flex: 1;

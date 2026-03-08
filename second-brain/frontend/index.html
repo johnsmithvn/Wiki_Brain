@@ -13,9 +13,7 @@
     <link rel="stylesheet" href="/css/editor.css">
     <link rel="stylesheet" href="/css/graph.css">
     <link rel="stylesheet" href="/css/components.css">
-
-    <!-- CodeMirror 6 -->
-    <script type="module" src="https://cdn.jsdelivr.net/npm/@aspect-run/codemirror-bundle@1.0.2/dist/index.min.js"></script>
+    <link rel="stylesheet" href="/css/toolbar.css">
 
     <!-- Marked.js -->
     <script src="https://cdn.jsdelivr.net/npm/marked@15.0.0/marked.min.js"></script>
@@ -46,6 +44,9 @@
                     <span>Search...</span>
                     <kbd>Ctrl+K</kbd>
                 </div>
+                <button class="icon-btn" id="btn-daily-note" title="Daily note (Alt+D)">
+                    <i data-lucide="calendar"></i>
+                </button>
                 <button class="icon-btn" id="btn-new-note" title="New note (Alt+N)">
                     <i data-lucide="file-plus"></i>
                 </button>
@@ -94,6 +95,24 @@
                     <i data-lucide="git-branch" style="width:14px;height:14px;margin-right:4px"></i>
                     Graph
                 </button>
+            </div>
+
+            <!-- Editor Toolbar -->
+            <div class="editor-toolbar" id="editor-toolbar" style="display:none">
+                <button class="toolbar-btn" data-action="bold" title="Bold (Ctrl+B)"><b>B</b></button>
+                <button class="toolbar-btn" data-action="italic" title="Italic (Ctrl+I)"><i>I</i></button>
+                <button class="toolbar-btn" data-action="code" title="Code"><i data-lucide="code" style="width:14px;height:14px"></i></button>
+                <div class="toolbar-separator"></div>
+                <button class="toolbar-btn" data-action="heading" title="Heading"><i data-lucide="heading" style="width:14px;height:14px"></i></button>
+                <button class="toolbar-btn" data-action="quote" title="Quote"><i data-lucide="quote" style="width:14px;height:14px"></i></button>
+                <button class="toolbar-btn" data-action="hr" title="Divider"><i data-lucide="minus" style="width:14px;height:14px"></i></button>
+                <div class="toolbar-separator"></div>
+                <button class="toolbar-btn" data-action="ul" title="Bullet List"><i data-lucide="list" style="width:14px;height:14px"></i></button>
+                <button class="toolbar-btn" data-action="ol" title="Numbered List"><i data-lucide="list-ordered" style="width:14px;height:14px"></i></button>
+                <button class="toolbar-btn" data-action="checkbox" title="Checkbox"><i data-lucide="check-square" style="width:14px;height:14px"></i></button>
+                <div class="toolbar-separator"></div>
+                <button class="toolbar-btn" data-action="link" title="Link"><i data-lucide="link" style="width:14px;height:14px"></i></button>
+                <button class="toolbar-btn" data-action="image" title="Image"><i data-lucide="image" style="width:14px;height:14px"></i></button>
             </div>
 
             <!-- Content Area -->
@@ -155,6 +174,10 @@
 
         <!-- RIGHT PANEL -->
         <aside class="right-panel" id="right-panel">
+            <div class="right-panel-section metadata-section" id="metadata-section">
+                <div class="right-panel-title">Note Info</div>
+                <div style="font-size:var(--text-xs);color:var(--text-muted)">Open a note to see details</div>
+            </div>
             <div class="right-panel-section">
                 <div class="right-panel-title">Table of Contents</div>
                 <ul class="toc-list" id="toc-list"></ul>
@@ -173,7 +196,7 @@
         <div class="modal">
             <div class="modal-header">
                 <i data-lucide="search"></i>
-                <input class="modal-search-input" id="search-input" type="text" placeholder="Search notes..." autofocus>
+                <input class="modal-search-input" id="search-input" type="text" placeholder="Search notes... (type / for commands)" autofocus>
             </div>
             <div class="modal-body" id="search-results">
                 <div style="padding:var(--sp-4);text-align:center;color:var(--text-muted);font-size:var(--text-sm)">
@@ -198,6 +221,9 @@
     <script type="module" src="/js/graph.js"></script>
     <script type="module" src="/js/toc.js"></script>
     <script type="module" src="/js/modal.js"></script>
+    <script type="module" src="/js/toolbar.js"></script>
+    <script type="module" src="/js/quick-capture.js"></script>
+    <script type="module" src="/js/slash-menu.js"></script>
     <script type="module" src="/js/app.js"></script>
 </body>
 </html>

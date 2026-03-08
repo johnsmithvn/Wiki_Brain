@@ -22,7 +22,9 @@ class FileService:
 
     def _absolute(self, rel_path: str) -> Path:
         resolved = (self.root / rel_path).resolve()
-        if not str(resolved).startswith(str(self.root.resolve())):
+        try:
+            resolved.relative_to(self.root.resolve())
+        except ValueError:
             raise ValueError("Path traversal detected")
         return resolved
 
@@ -49,7 +51,7 @@ class FileService:
 
         entries = sorted(directory.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
         for entry in entries:
-            if entry.name.startswith("."):
+            if entry.name.startswith(".") or entry.name.startswith("_"):
                 continue
             if entry.is_dir():
                 children = self._build_tree(entry)
