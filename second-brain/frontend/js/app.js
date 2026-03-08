@@ -274,33 +274,38 @@ function toggleRightPanel() {
 }
 
 function handleGlobalShortcuts(e) {
-    // Ctrl+K - Search
+    // Ctrl+K - Search (standard, override Chrome)
     if (e.ctrlKey && e.key === 'k') {
         e.preventDefault();
         openSearch();
+        return;
     }
-    // Ctrl+N - New note
-    if (e.ctrlKey && e.key === 'n') {
+    // Alt+N - New note (avoid Ctrl+N = Chrome new window)
+    if (e.altKey && e.key === 'n') {
         e.preventDefault();
         document.getElementById('btn-new-note').click();
+        return;
     }
-    // Ctrl+B - Toggle sidebar
-    if (e.ctrlKey && e.key === 'b') {
+    // Alt+B - Toggle sidebar (avoid Ctrl+B = Chrome bookmarks)
+    if (e.altKey && e.key === 'b') {
         e.preventDefault();
         document.getElementById('btn-collapse-sidebar').click();
+        return;
     }
-    // Ctrl+E - Toggle editor/preview
-    if (e.ctrlKey && e.key === 'e') {
+    // Alt+E - Toggle editor/preview
+    if (e.altKey && e.key === 'e') {
         e.preventDefault();
         if (state.currentNote) {
             const next = state.currentView === 'editor' ? 'preview' : 'editor';
             switchView(next);
         }
+        return;
     }
-    // Ctrl+G - Graph view
-    if (e.ctrlKey && e.key === 'g') {
+    // Alt+G - Graph view (avoid Ctrl+G = Chrome find next)
+    if (e.altKey && e.key === 'g') {
         e.preventDefault();
         if (state.currentNote) switchView('graph');
+        return;
     }
     // Escape - Close modals
     if (e.key === 'Escape') {

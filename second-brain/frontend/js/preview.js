@@ -9,11 +9,21 @@ export function initPreview({ onLinkClick, notePaths }) {
     onWikiLinkClick = onLinkClick;
     allNotePaths = notePaths || [];
 
-    // Configure marked
+    // Configure marked with custom renderer for heading IDs
     if (typeof marked !== 'undefined') {
+        const renderer = new marked.Renderer();
+
+        // Generate heading IDs matching TOC's id generation
+        renderer.heading = function ({ text, depth }) {
+            const raw = stripHtmlTags(text);
+            const id = raw.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
+            return `<h${depth} id="${id}">${text}</h${depth}>`;
+        };
+
         marked.setOptions({
             breaks: true,
             gfm: true,
+            renderer,
         });
     }
 }
@@ -81,6 +91,12 @@ function isLinkResolved(linkText) {
         const stem = path.split('/').pop().replace('.md', '').toLowerCase().replace(/\s+/g, '-');
         return stem === linkLower;
     });
+}
+
+function stripHtmlTags(html) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || '';
 }
 
 function escapeHtml(str) {

@@ -17,7 +17,7 @@ export function initSidebar({ onSelect, onNew }) {
 
     document.getElementById('btn-collapse-sidebar').addEventListener('click', toggleSidebar);
     document.getElementById('btn-show-sidebar').addEventListener('click', toggleSidebar);
-    document.getElementById('btn-new-note').addEventListener('click', handleNewNote);
+    document.getElementById('btn-new-note').addEventListener('click', () => handleNewNote());
 
     loadTree();
     loadTags();
@@ -127,13 +127,40 @@ function renderTags(tags) {
         container.innerHTML = `<span style="font-size:var(--text-xs);color:var(--text-muted)">No tags</span>`;
         return;
     }
-    container.innerHTML = tags.slice(0, 20).map(t =>
+
+    const MAX_VISIBLE = 9; // ~3 rows of tags
+    const visibleTags = tags.slice(0, MAX_VISIBLE);
+    const hiddenCount = tags.length - MAX_VISIBLE;
+
+    const buildChips = (tagList) => tagList.map(t =>
         `<span class="tag-chip" data-tag="${escapeHtml(t.name)}">#${escapeHtml(t.name)} <span class="tag-count">${t.count}</span></span>`
     ).join('');
 
-    container.querySelectorAll('.tag-chip').forEach(chip => {
+    container.innerHTML = buildChips(visibleTags);
+
+    if (hiddenCount > 0) {
+        const moreChip = document.createElement('span');
+        moreChip.className = 'tag-chip tag-more';
+        moreChip.textContent = `+${hiddenCount} more`;
+        moreChip.addEventListener('click', () => {
+            // Expand: show all tags
+            container.innerHTML = buildChips(tags);
+            const collapseChip = document.createElement('span');
+            collapseChip.className = 'tag-chip tag-more';
+            collapseChip.textContent = '− collapse';
+            collapseChip.addEventListener('click', () => renderTags(tags));
+            container.appendChild(collapseChip);
+            attachTagClickHandlers(container);
+        });
+        container.appendChild(moreChip);
+    }
+
+    attachTagClickHandlers(container);
+}
+
+function attachTagClickHandlers(container) {
+    container.querySelectorAll('.tag-chip:not(.tag-more)').forEach(chip => {
         chip.addEventListener('click', () => {
-            // Could filter by tag or open search with tag
             const searchInput = document.getElementById('search-input');
             document.getElementById('search-modal').classList.remove('hidden');
             searchInput.value = `#${chip.dataset.tag}`;

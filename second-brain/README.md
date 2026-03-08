@@ -46,11 +46,11 @@ http://localhost:8000
 | Shortcut | Action |
 |----------|--------|
 | `Ctrl+K` | Search / Command Palette |
-| `Ctrl+N` | New Note |
+| `Alt+N` | New Note |
 | `Ctrl+S` | Save Note |
-| `Ctrl+E` | Toggle Editor/Preview |
-| `Ctrl+G` | Graph View |
-| `Ctrl+B` | Toggle Sidebar |
+| `Alt+E` | Toggle Editor/Preview |
+| `Alt+G` | Graph View |
+| `Alt+B` | Toggle Sidebar |
 
 ## Project Structure
 

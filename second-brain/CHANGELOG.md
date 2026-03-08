@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.1.1 (2026-03-08)
+
+### Fixed
+- TOC click now scrolls to correct heading position (custom `marked` heading ID renderer)
+- Keyboard shortcuts no longer conflict with Chrome (changed from `Ctrl` to `Alt` for N/B/E/G)
+- Tags overflow — shows max 3 rows (~9 tags) with `+N more` expand/collapse
+- Fixed `[object PointerEvent]` folder creation bug when clicking New Note button
+
+### Changed
+- Replaced all native `prompt()` and `confirm()` dialogs with custom popup modals
+- Added proper `.gitignore` for Python/IDE/OS/application data
+
 ## v0.1.0 (2026-03-08)
 
 ### Added

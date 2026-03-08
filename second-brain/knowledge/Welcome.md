@@ -19,6 +19,106 @@ This is your personal knowledge base. Start creating notes and connecting your i
 - 🌙 **Dark Mode** — Easy on the eyes
 
 ## Example Link
+#meo
+#meo2
+#meo4
+#meo5
+#meo6
+#meo7
+#meo8
+#meo9
+#meo10
+#meo11
+
+Check out [[Getting Started]] for more tips!
+
+#welcome #second-brain
+
+## Features
+
+- ✍️ **Markdown Editor** — Write with full markdown support
+- 🔗 **Bi-directional Links** — Connect ideas with `[[links]]`
+- 🕸️ **Graph View** — See how your knowledge connects
+- 🔍 **Full-text Search** — Find anything instantly
+- 📁 **Folders & Tags** — Organize your way
+- 🌙 **Dark Mode** — Easy on the eyes
+
+## Example Link
+
+Check out [[Getting Started]] for more tips!
+
+#welcome #second-brain
+
+## Features
+
+- ✍️ **Markdown Editor** — Write with full markdown support
+- 🔗 **Bi-directional Links** — Connect ideas with `[[links]]`
+- 🕸️ **Graph View** — See how your knowledge connects
+- 🔍 **Full-text Search** — Find anything instantly
+- 📁 **Folders & Tags** — Organize your way
+- 🌙 **Dark Mode** — Easy on the eyes
+
+## Example Link
+
+Check out [[Getting Started]] for more tips!
+
+#welcome #second-brain
+
+## Features
+
+- ✍️ **Markdown Editor** — Write with full markdown support
+- 🔗 **Bi-directional Links** — Connect ideas with `[[links]]`
+- 🕸️ **Graph View** — See how your knowledge connects
+- 🔍 **Full-text Search** — Find anything instantly
+- 📁 **Folders & Tags** — Organize your way
+- 🌙 **Dark Mode** — Easy on the eyes
+
+## Example Link
+
+Check out [[Getting Started]] for more tips!
+
+#welcome #second-brain
+
+## Features
+
+- ✍️ **Markdown Editor** — Write with full markdown support
+- 🔗 **Bi-directional Links** — Connect ideas with `[[links]]`
+- 🕸️ **Graph View** — See how your knowledge connects
+- 🔍 **Full-text Search** — Find anything instantly
+- 📁 **Folders & Tags** — Organize your way
+- 🌙 **Dark Mode** — Easy on the eyes
+
+## Example Link
+
+Check out [[Getting Started]] for more tips!
+
+#welcome #second-brain
+
+## Features
+
+- ✍️ **Markdown Editor** — Write with full markdown support
+- 🔗 **Bi-directional Links** — Connect ideas with `[[links]]`
+- 🕸️ **Graph View** — See how your knowledge connects
+- 🔍 **Full-text Search** — Find anything instantly
+- 📁 **Folders & Tags** — Organize your way
+- 🌙 **Dark Mode** — Easy on the eyes
+
+## Example Link
+
+Check out [[Getting Started]] for more tips!
+
+#welcome #second-brain
+
+## Features
+
+- ✍️ **Markdown Editor** — Write with full markdown support
+- 🔗 **Bi-directional Links** — Connect ideas with `[[links]]`
+- 🕸️ **Graph View** — See how your knowledge connects
+- 🔍 **Full-text Search** — Find anything instantly
+- 📁 **Folders & Tags** — Organize your way
+- 🌙 **Dark Mode** — Easy on the eyes
+
+## Example Link
 
 Check out [[Getting Started]] for more tips!
 
