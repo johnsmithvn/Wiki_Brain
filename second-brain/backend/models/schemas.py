@@ -54,6 +54,7 @@ class FileTreeItem(BaseModel):
     name: str
     path: str
     is_dir: bool
+    created_at: float | None = None
     children: list["FileTreeItem"] = Field(default_factory=list)
 
 

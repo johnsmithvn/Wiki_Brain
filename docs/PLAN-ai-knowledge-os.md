@@ -1,244 +1,563 @@
-# PLAN-ai-knowledge-os
+# PLAN — AI Knowledge OS (Master Plan)
 
-## Overview
-Xây dựng **AI Knowledge OS** dựa trên codebase `second-brain` hiện tại theo lộ trình 5 phase, ưu tiên hoàn thiện **Phase 1 (Solid Knowledge Base)** để tạo nền ổn định trước khi thêm semantic layer, AI reasoning, workspace database và hạ tầng AI production.
+> **Ngày tạo:** 2026-03-08
+> **Cập nhật lần cuối:** 2026-03-08
+> **Trạng thái:** Phase 1 DONE ✅ → Bắt đầu Phase 2
 
-Mục tiêu của plan này:
-- Chốt backlog triển khai theo thứ tự phụ thuộc kỹ thuật.
-- Chia nhiệm vụ rõ ràng theo backend/frontend/infra.
-- Định nghĩa tiêu chí kiểm chứng để tránh “xong tính năng nhưng chưa chạy ổn định”.
+---
 
-## Project Type
-- **WEB + BACKEND (FastAPI + Vanilla JS)**
+## 1. Tầm nhìn dự án
 
-## Success Criteria
-- Phase 1 hoàn thành với 4 năng lực cốt lõi:
-  - Popup chọn template khi tạo note mới (phím tắt theo spec).
-  - Tự động reindex khi file thay đổi từ bên ngoài app.
-  - Graph có bộ lọc tag/folder/depth hoạt động đúng.
-  - Rename note tự cập nhật toàn bộ `[[wiki-links]]` liên quan.
-- Kiến trúc sẵn sàng để mở rộng sang Phase 2-5 mà không cần rewrite lớn.
-- Có checklist verification + tiêu chí đo chất lượng cho mỗi phase.
+```
+Knowledge Collector + Knowledge Vault + AI Reasoning System
+```
 
-## Progress Update (2026-03-08)
-- Sprint 1 core status: **ALL DONE** (T01-T04)
-- Sprint 2 status: **ALL DONE** (T05-T08)
-- Phase 1 (Solid Knowledge Base): **COMPLETE ✅**
-- Next implementation focus: Phase 2 (AI Search Layer, T09-T10)
+- **Capture** kiến thức zero-friction (Telegram, browser, web UI)
+- **Organize** thủ công + AI gợi ý (user luôn quyết định)
+- **Retrieve** bằng keyword, semantic, graph reasoning
+- **Reason** — AI tổng hợp, phân tích từ toàn bộ vault + knowledge graph
 
-## Tech Stack (Current + Planned)
-- Current:
-  - Backend: FastAPI, aiofiles
-  - Search: SQLite FTS5
-  - Frontend: Vanilla JS (ES modules), D3
-  - Storage: Markdown filesystem
-- Planned additions:
-  - Phase 2: Embedding model (BGE-small/Nomic), Qdrant
-  - Phase 3: Ollama + local LLM, Neo4j
-  - Phase 5: Celery/Redis (hoặc Dramatiq), observability + RAG evaluation
+**Nguyên tắc:** Manual workflow LUÔN hoạt động. AI chỉ **augment**, không **replace**.
 
-## File Structure Impact
-- Backend
-  - `second-brain/backend/api/notes.py`
-  - `second-brain/backend/api/graph.py`
-  - `second-brain/backend/main.py`
-  - `second-brain/backend/services/file_service.py`
-  - `second-brain/backend/services/index_service.py`
-  - `second-brain/backend/services/link_service.py`
-  - (new) `second-brain/backend/services/template_service.py`
-  - (new) `second-brain/backend/services/watcher_service.py`
-- Frontend
-  - `second-brain/frontend/index.html`
-  - `second-brain/frontend/js/app.js`
-  - `second-brain/frontend/js/sidebar.js`
-  - `second-brain/frontend/js/api.js`
-  - `second-brain/frontend/js/graph.js`
-  - (new) `second-brain/frontend/js/template-modal.js`
-  - (new) `second-brain/frontend/css/template-modal.css`
-- Vault conventions
-  - `second-brain/knowledge/template/` (template notes)
+---
 
-## Task Breakdown
+## 2. Nguyên tắc kiến trúc (Chốt)
 
-### Phase 1 — Solid Knowledge Base (Execution Now)
+| # | Nguyên tắc | Lý do |
+|---|-----------|-------|
+| 1 | **Markdown = Source of Truth** | Text-first, không vendor lock-in, AI đọc tốt |
+| 2 | **AI = Layer bổ sung** | Manual workflow luôn hoạt động, AI không auto move/delete |
+| 3 | **Capture = Zero friction** | Ném vào Telegram/browser → tự append inbox |
+| 4 | **Schema-first** | Design entry schema từ đầu → không migrate khi thêm AI |
+| 5 | **Home Server** | Ubuntu 32GB RAM + RTX 4060 Ti 16GB, local AI miễn phí |
+| 6 | **Infra giản lược** | Docker Compose + Ollama + Qdrant + FastAPI. Không Prometheus/Grafana sớm |
+| 7 | **Service Boundaries** | API → Service → Storage. Never reverse. Xem `docs/BACKEND-SERVICE-BOUNDARIES.md` |
 
-- [x] **T01: Baseline + dependency hardening**
-  - Agent: `backend-specialist`
-  - Skill: `clean-code`
-  - Priority: P0
-  - Dependencies: none
-  - INPUT → OUTPUT → VERIFY:
-    - Input: codebase hiện tại + requirements
-    - Output: baseline matrix (feature hiện có/chưa có), requirements update (`watchdog`)
-    - Verify: app khởi động bình thường, không regression endpoint hiện hữu
+---
 
-- [x] **T02: Template discovery API + model**
-  - Agent: `backend-specialist`
-  - Skill: `api-patterns`
-  - Priority: P0
-  - Dependencies: T01
-  - INPUT → OUTPUT → VERIFY:
-    - Input: folder `knowledge/template/`
-    - Output: API trả danh sách template + API đọc template content
-    - Verify: gọi API trả đúng metadata/template content; lỗi path traversal bị chặn
+## 3. Kiến trúc tổng thể
 
-- [x] **T03: New note flow with template chooser UI**
-  - Agent: `frontend-specialist`
-  - Skill: `frontend-design`
-  - Priority: P1
-  - Dependencies: T02
-  - INPUT → OUTPUT → VERIFY:
-    - Input: shortcut create note + template APIs
-    - Output: popup chọn template, tạo note mới từ template, fallback “blank note”
-    - Verify: thao tác keyboard tạo note đúng nội dung template và mở note mới thành công
+```
+┌──────────────────────────────────────────────────────────────┐
+│                        CAPTURE LAYER                         │
+│  Telegram Bot │ Browser Bookmarklet │ Web UI │ Quick Capture │
+└─────────────────────────┬────────────────────────────────────┘
+                          │
+                          ▼
+┌──────────────────────────────────────────────────────────────┐
+│                     INGESTION PIPELINE                       │
+│  Entry Parser │ URL Scraper │ Schema Normalizer │ Watcher    │
+└─────────────────────────┬────────────────────────────────────┘
+                          │
+                          ▼
+┌──────────────────────────────────────────────────────────────┐
+│                     KNOWLEDGE VAULT                          │
+│              Markdown Filesystem (Source of Truth)            │
+│  inbox/ │ daily/ │ {topic folders}/ │ template/ │ _assets/   │
+└─────────────────────────┬────────────────────────────────────┘
+                          │
+              ┌───────────┼───────────┐
+              ▼           ▼           ▼
+┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+│  FTS INDEX   │ │  TAG/LINK    │ │  SEMANTIC    │
+│  SQLite FTS5 │ │  GRAPH       │ │  INDEX       │
+│  (keyword)   │ │  (in-memory) │ │  (Qdrant)    │
+└──────┬───────┘ └──────┬───────┘ └──────┬───────┘
+       └────────────────┼────────────────┘
+                        ▼
+┌──────────────────────────────────────────────────────────────┐
+│                     RETRIEVAL LAYER                          │
+│  Hybrid Search (FTS + Vector → weighted fusion)              │
+│  Graph Expansion (vector → extract notes → BFS neighbors)    │
+└─────────────────────────┬────────────────────────────────────┘
+                          │
+                          ▼
+┌──────────────────────────────────────────────────────────────┐
+│                       AI LAYER                               │
+│  RAG Chat │ Summary │ Related Notes │ Auto-link Suggestion   │
+│  Graph+Vector Hybrid Reasoning │ Topic Clustering            │
+│                                                              │
+│  LLM: Ollama + Qwen2.5 7B (local GPU)                       │
+└─────────────────────────┬────────────────────────────────────┘
+                          │
+                          ▼
+┌──────────────────────────────────────────────────────────────┐
+│                      MEMORY LAYER                            │
+│  Short-term (conversation) │ Session (research thread)       │
+│  Long-term (user insights stored in knowledge/memory/)       │
+└─────────────────────────┬────────────────────────────────────┘
+                          │
+                          ▼
+┌──────────────────────────────────────────────────────────────┐
+│                      FRONTEND                                │
+│  4-Panel: Sidebar │ Editor/Preview │ AI Panel │ Graph/Search │
+│  Vanilla JS + D3.js + marked.js                              │
+└──────────────────────────────────────────────────────────────┘
+```
 
-- [x] **T04: File watcher + auto-reindex pipeline hook**
-  - Agent: `backend-specialist`
-  - Skill: `python-patterns`
-  - Priority: P0
-  - Dependencies: T01
-  - INPUT → OUTPUT → VERIFY:
-    - Input: thay đổi file ngoài app (create/update/delete/rename)
-    - Output: watcher service phát hiện thay đổi và gọi update index/tags/links
-    - Verify: sửa file bằng VS Code hoặc git checkout/pull thì search/tag/backlink cập nhật sau debounce
+---
 
-- [x] **T05: Rename propagation for `[[wiki-links]]`**
-  - Agent: `backend-specialist`
-  - Skill: `clean-code`
-  - Priority: P0
-  - Dependencies: T04
-  - INPUT → OUTPUT → VERIFY:
-    - Input: rename note A -> B
-    - Output: tất cả note tham chiếu `[[A]]`/`[[A|alias]]` được rewrite sang `[[B]]` giữ alias hợp lệ
-    - Verify: rename 1 note có nhiều backlink, mở từng note kiểm tra link đã đổi và graph không đứt cạnh
+## 4. Data Schema (Chốt — không migrate sau này)
 
-- [x] **T06: Advanced graph filter API**
-  - Agent: `backend-specialist`
-  - Skill: `api-patterns`
-  - Priority: P1
-  - Dependencies: T04
-  - INPUT → OUTPUT → VERIFY:
-    - Input: filter params `tags[]`, `folders[]`, `depth`
-    - Output: API graph trả node/edge đã lọc
-    - Verify: query filter trả đúng subset, không crash khi filter rỗng
+### 4.1 Inbox Entry Schema
 
-- [x] **T07: Graph filter controls in UI**
-  - Agent: `frontend-specialist`
-  - Skill: `frontend-design`
-  - Priority: P1
-  - Dependencies: T06
-  - INPUT → OUTPUT → VERIFY:
-    - Input: graph filter API
-    - Output: panel filter + apply/reset + sync state với graph render
-    - Verify: chọn tag/folder/depth thay đổi graph theo thời gian thực, reset về full graph được
+File: `knowledge/inbox/YYYY-MM-DD.md`
 
-- [x] **T08: Unit tests + CI/CD**
-  - Agent: `backend-specialist`
-  - Skill: `testing-patterns`
-  - Priority: P0
-  - Dependencies: T05, T07
-  - INPUT → OUTPUT → VERIFY:
-    - Input: toàn bộ thay đổi Phase 1
-    - Output: 43 pytest tests pass, GitHub Actions CI/CD pipeline
-    - Verify: pytest green, CI lint+test pass on push
+```markdown
+# Inbox — 2026-03-08
 
-### Phase 2 — AI Search Layer (Design + Build After Phase 1)
+---
 
-- [ ] **T09: Semantic index architecture decision (chunking + embedding schema)**
-  - Agent: `backend-specialist`
-  - Skill: `architecture`
-  - Priority: P1
-  - Dependencies: T08
-  - INPUT → OUTPUT → VERIFY:
-    - Input: notes corpus + search requirements
-    - Output: decision record cho chunking, embedding model, Qdrant collection schema
-    - Verify: có benchmark plan (quality + latency) và migration path từ FTS hiện tại
+id: 20260308-142135
+time: 14:21
+source: telegram
 
-- [ ] **T10: Implement semantic retrieval + related notes block + link suggestion baseline**
-  - Agent: `backend-specialist` + `frontend-specialist`
-  - Skill: `api-patterns`, `frontend-design`
-  - Priority: P1
-  - Dependencies: T09
-  - INPUT → OUTPUT → VERIFY:
-    - Input: embedding pipeline + vector DB
-    - Output: semantic search endpoint, related-notes UI block, suggestion API
-    - Verify: cùng query nhưng semantic search trả kết quả đúng ngữ nghĩa hơn keyword-only
+---
 
-### Phase 3 — AI Brain
+bài này giải thích RAG pipeline khá rõ
 
-- [ ] **T11: RAG chat (`Ask Your Vault`) with source-grounded answers**
-  - Agent: `backend-specialist`
-  - Skill: `api-patterns`
-  - Priority: P2
-  - Dependencies: T10
-  - INPUT → OUTPUT → VERIFY:
-    - Input: semantic retrieval context + Ollama LLM
-    - Output: chat API + citation/source references
-    - Verify: câu trả lời có trích nguồn note nội bộ, giảm hallucination theo checklist
+https://example.com
 
-- [ ] **T12: Knowledge graph reasoning + weekly synthesis jobs**
-  - Agent: `backend-specialist`
-  - Skill: `architecture`
-  - Priority: P2
-  - Dependencies: T11
-  - INPUT → OUTPUT → VERIFY:
-    - Input: entities/relations + scheduler
-    - Output: Neo4j pipeline + weekly summary generation job
-    - Verify: summary tuần có chủ đề chính, liên kết được tới notes gốc
+---
 
-### Phase 4 — Intelligent Workspace
+id: 20260308-183022
+time: 18:30
+source: telegram
+type: note
 
-- [ ] **T13: Structured pages (table/properties/query) foundation**
-  - Agent: `backend-specialist` + `frontend-specialist`
-  - Skill: `database-design`, `frontend-design`
-  - Priority: P2
-  - Dependencies: T12
-  - INPUT → OUTPUT → VERIFY:
-    - Input: page schema + property model
-    - Output: database-like pages + query layer + list/kanban views
-    - Verify: tạo dự án/task với properties và lọc/nhóm trong UI thành công
+---
 
-### Phase 5 — AI System Infrastructure
+Động lực không đến từ cảm xúc nhất thời.
+Nó đến từ việc hiểu rõ mục tiêu của bạn.
+```
 
-- [ ] **T14: Async worker + unified indexing pipeline + observability/eval/caching**
-  - Agent: `devops-engineer` + `backend-specialist`
-  - Skill: `deployment-procedures`, `architecture`
-  - Priority: P0 (khi bắt đầu scale AI workloads)
-  - Dependencies: T11
-  - INPUT → OUTPUT → VERIFY:
-    - Input: các job nặng (embedding, graph extraction, rerank)
-    - Output: queue worker, telemetry, RAG eval loop, cache strategy
-    - Verify: API response time ổn định khi ingest lớn, có metrics dashboard + báo cáo eval định kỳ
+### 4.2 Entry Metadata Fields
 
-## Agent Assignments
-- `project-planner`: quản lý dependency + update plan mỗi sprint.
-- `backend-specialist`: toàn bộ service/API/index/retrieval/worker integration.
-- `frontend-specialist`: modal template, graph filter UI, related-notes, workspace views.
-- `test-engineer`: test matrix + regression guardrails cho CRUD/search/graph/RAG.
-- `devops-engineer`: queue, observability, deployment reliability.
+| Field | Required | Mô tả |
+|-------|----------|-------|
+| `id` | Yes | `YYYYMMDD-HHmmss` (unique per entry) |
+| `time` | Yes | `HH:mm` |
+| `source` | Yes | `telegram` / `browser` / `manual` / `quick-capture` |
+| `type` | No | `link` / `article` / `note` / `idea` / `quote` (auto-detect) |
+| `tags` | No | `[tag1, tag2]` (AI gợi ý sau) |
+| `url` | No | URL nếu có |
 
-## Risks & Mitigation
-- Rủi ro race condition khi watcher + API update cùng lúc.
-  - Mitigation: debounce + idempotent index update + per-path lock.
-- Rủi ro rename link rewrite sai alias hoặc context code block.
-  - Mitigation: parser-based rewrite thay vì regex thay thế thô.
-- Rủi ro chi phí/độ trễ khi vào Phase 2-3.
-  - Mitigation: batch embedding, cache, async queue, evaluation loop sớm từ Phase 5.
+### 4.3 Organized Note Schema
 
-## Phase X — Verification Checklist
-- [ ] Security scan (không lộ secrets, không path traversal regression).
-- [ ] Lint/type/test pass cho backend/frontend.
-- [ ] Manual flow pass:
-  - [ ] Create note từ template
-  - [ ] External file change auto-reindex
-  - [ ] Rename note auto-update wiki links toàn vault
-  - [ ] Graph filter theo tags/folders/depth
-- [ ] Performance smoke:
-  - [ ] Startup index không tăng lỗi
-  - [ ] Search/graph response time chấp nhận được với vault mẫu
-- [ ] Cập nhật `second-brain/CHANGELOG.md` theo mốc phase/sprint.
+```markdown
+---
+title: Claude Reasoning Architecture
+source: https://example.com
+captured: 2026-03-08
+tags: [ai, llm, claude]
+---
 
-## Immediate Sprint Recommendation
-- Sprint 1 (1-2 tuần): **T01, T02, T03, T04**
-- Sprint 2 (1 tuần): **T05, T06, T07, T08**
-- Sau Sprint 2: review chất lượng rồi mới mở T09 (Semantic layer)
+## Summary
+Bài viết giải thích...
+
+## Notes
+Điểm quan trọng...
+
+## Content
+[Nội dung đầy đủ]
+```
+
+### 4.4 Chunk Metadata Schema (cho Qdrant)
+
+```json
+{
+  "chunk_id": "ai/rag.md#2",
+  "note_path": "ai/rag.md",
+  "heading": "Retrieval",
+  "chunk_index": 2,
+  "tags": ["ai", "rag"],
+  "links": ["vector-search.md", "embedding.md"],
+  "token_count": 312
+}
+```
+
+**Embedding input format:**
+```
+Title: RAG Pipeline
+Section: Retrieval
+
+Content:
+...actual chunk text...
+```
+
+---
+
+## 5. Tech Stack
+
+### Phase 1 (DONE ✅)
+| Component | Technology |
+|-----------|------------|
+| Backend | FastAPI 0.115.6 |
+| Search | SQLite FTS5 (porter + unicode61) |
+| Frontend | Vanilla JS (ES modules) |
+| Graph | D3.js |
+| Markdown | marked.js |
+| Watcher | watchdog 6.0.0 |
+| File I/O | aiofiles |
+| Tests | pytest (43 tests) |
+
+### Phase 2 thêm
+| Component | Technology |
+|-----------|------------|
+| Telegram Bot | python-telegram-bot 21.x |
+| URL Scraper | trafilatura |
+| HTTP Client | httpx |
+
+### Phase 3 thêm
+| Component | Technology |
+|-----------|------------|
+| Embedding | sentence-transformers + BGE-M3 |
+| Vector DB | Qdrant (self-hosted) |
+| Markdown AST | markdown-it-py (chunker) |
+
+### Phase 4 thêm
+| Component | Technology |
+|-----------|------------|
+| LLM Runtime | Ollama |
+| LLM Model | Qwen2.5 7B Q4_K_M |
+| Streaming | SSE (Server-Sent Events) |
+
+### Phase 6 thêm (giản lược per chot.md)
+| Component | Technology |
+|-----------|------------|
+| Container | Docker Compose |
+| Background | asyncio.Queue + background tasks |
+
+> **Đã bỏ:** Prometheus, Grafana, Dramatiq, Redis — quá nặng cho single-user.
+> **Reranker:** Deferred — vault < 5000 notes thì vector search đủ tốt.
+
+---
+
+## 6. VRAM Budget (RTX 4060 Ti 16GB)
+
+| Component | VRAM | Phase |
+|-----------|------|-------|
+| Embedding (BGE-M3) | ~2.5GB | 3 |
+| LLM (Qwen2.5 7B Q4) | ~5GB | 4 |
+| CUDA overhead | ~1GB | — |
+| **Tổng** | **~8.5GB** | Phase 4 |
+| **Còn trống** | **~7.5GB** | Headroom |
+
+---
+
+## 7. Feasibility Assessment (Code Scan)
+
+> Đã scan toàn bộ codebase Phase 1 — **không có blocking issue nào**.
+
+### Extension Points sẵn có
+
+| Tính năng mới | Extension Point | Nỗ lực |
+|---------------|-----------------|--------|
+| Capture API | `app.include_router()` trong main.py | Thấp |
+| Embedding queue | Hook vào `index_service.index_note()` | Trung bình |
+| Graph expansion | `link_service.get_local_graph(path, depth)` đã có BFS | Thấp |
+| Watcher → embedding | Hook vào `watcher_service._upsert_note()` | Trung bình |
+| Qdrant integration | Thêm `qdrant-client`, tạo `vector_service.py` | Trung bình |
+| Ollama integration | Thêm `httpx`, tạo `llm_service.py` | Trung bình |
+| New frontend panels | Thêm DOM + `switchView()` case + JS module | Thấp |
+| Telegram bot | `asyncio.create_task()` trong lifespan startup | Trung bình |
+
+### Tech Debt cần fix trước Phase 2 (Sprint 2.5 — Refactor)
+
+| # | Issue | Severity | Fix |
+|---|-------|----------|-----|
+| 1 | **Duplicated update pipeline** (tags→links→index) ở 4 chỗ | **High** | Extract `note_pipeline()` function |
+| 2 | Sync startup blocking `_build_initial_index()` | Medium | Chuyển sang async |
+| 3 | Watcher chạy sync trong watchdog thread | Medium | Offload sang async queue |
+| 4 | `conftest.py` `_connection` → `_conn` typo | Low | Fix attribute name |
+| 5 | Thiếu `GET /api/health` endpoint | Low | Thêm health check |
+| 6 | Thiếu API integration tests | Medium | Thêm TestClient tests |
+
+---
+
+## 8. Phase 1: Solid Knowledge Base ✅ COMPLETE
+
+> **43/43 tests pass. All 8 tasks verified.**
+
+- [x] **T01:** Baseline + dependency hardening
+- [x] **T02:** Template discovery API + model
+- [x] **T03:** Template chooser UI + `Ctrl+N`
+- [x] **T04:** File watcher + auto-reindex
+- [x] **T05:** Rename propagation for `[[wiki-links]]`
+- [x] **T06:** Advanced graph filter API (tags, folders, depth)
+- [x] **T07:** Graph filter controls UI
+- [x] **T08:** Unit tests + CI/CD (43 tests)
+
+---
+
+## 9. Phase 2: Refactor + Capture Layer & Inbox System
+
+**Mục tiêu:** Fix tech debt, xây pipeline capture zero-friction
+**Thời gian:** 3-4 tuần
+**Design doc:** `docs/DESIGN-ingestion-pipeline.md`
+
+### Sprint 2.5: Pre-Phase Refactor (3-5 ngày)
+
+| Task | Mô tả | INPUT → OUTPUT → VERIFY |
+|------|-------|------------------------|
+| **T09** | Extract `note_pipeline()` | INPUT: 4 nơi duplicated pipeline → OUTPUT: 1 function shared → VERIFY: existing 43 tests still pass |
+| **T10** | Async background task queue | INPUT: sync watcher → OUTPUT: `asyncio.Queue` + background worker in lifespan → VERIFY: watcher triggers async handler |
+| **T11** | Health check endpoint | INPUT: none → OUTPUT: `GET /api/health` → VERIFY: returns 200 |
+| **T12** | Fix conftest `_conn` typo | INPUT: `_connection` → OUTPUT: `_conn` → VERIFY: tests still pass |
+| **T12b** | Viết `BACKEND-SERVICE-BOUNDARIES.md` | INPUT: service list → OUTPUT: dependency graph + async rules + concurrency rules → VERIFY: no circular deps |
+
+### Sprint 3: Capture Backend (1 tuần)
+
+| Task | Mô tả | INPUT → OUTPUT → VERIFY |
+|------|-------|------------------------|
+| **T13** | Capture API endpoint | INPUT: `POST /api/capture` body → OUTPUT: entry appended to `inbox/YYYY-MM-DD.md` → VERIFY: curl returns 201, file contains entry |
+| **T14** | Capture service | INPUT: raw text/URL → OUTPUT: parsed entry with id, time, source, auto-detect type + **`asyncio.Lock` per-file write** → VERIFY: unit tests, concurrent write test |
+| **T15** | Inbox folder config | INPUT: config → OUTPUT: `inbox` in `INDEX_EXCLUDED_FOLDERS`, auto-create dir → VERIFY: inbox notes excluded from search |
+| **T16** | URL scraper service | INPUT: URL → OUTPUT: title + article markdown via **`asyncio.to_thread(trafilatura)`** → VERIFY: test with real URL, confirm non-blocking |
+
+### Sprint 4: Capture Sources + Inbox UI (1-2 tuần)
+
+| Task | Mô tả | INPUT → OUTPUT → VERIFY |
+|------|-------|------------------------|
+| **T17** | Telegram Bot | INPUT: message on Telegram → OUTPUT: capture API called → VERIFY: message appears in inbox |
+| **T18** | Inbox API endpoints | INPUT: `GET /api/inbox`, `GET /api/inbox/{date}` → OUTPUT: parsed entries → VERIFY: API returns entry list |
+| **T19** | Inbox UI panel | INPUT: click Inbox tab → OUTPUT: entries by date, expand/collapse, preview → VERIFY: visual test |
+| **T20** | Inbox → Vault workflow | INPUT: click "Convert" → OUTPUT: organized note created, entry archived → VERIFY: note in vault, entry removed |
+| **T21** | Browser bookmarklet | INPUT: bookmarklet click → OUTPUT: URL + selected text → capture API → VERIFY: entry in inbox |
+
+**Verification checklist:**
+- [ ] `POST /api/capture` với text + URL → inbox entry
+- [ ] Telegram message → inbox entry
+- [ ] Inbox UI hiển thị entries, keyboard shortcuts (Enter/A/D)
+- [ ] Convert entry → organized note with schema
+- [ ] Bookmarklet capture thành công
+- [ ] Test coverage cho capture_service, inbox API
+
+---
+
+## 10. Phase 3: Semantic Search Layer
+
+**Mục tiêu:** Tìm kiếm theo ngữ nghĩa + related notes
+**Thời gian:** 2-3 tuần
+**Design doc:** `docs/DESIGN-chunking-retrieval.md`
+
+### Sprint 5: Embedding Pipeline (1-2 tuần)
+
+| Task | Mô tả | INPUT → OUTPUT → VERIFY |
+|------|-------|------------------------|
+| **T22** | Chunking service | INPUT: markdown note → OUTPUT: semantic chunks (heading+paragraph, 300-500 tokens, 50 overlap) → VERIFY: unit tests |
+| **T23** | Embedding service | INPUT: chunk list → OUTPUT: vectors via BGE-M3, batch_size=32 → VERIFY: embeddings shape correct |
+| **T24** | Qdrant integration | INPUT: vectors + metadata → OUTPUT: upsert to Qdrant collection → VERIFY: search returns results |
+| **T25** | Incremental indexing | INPUT: file change → OUTPUT: delete old chunks + re-embed note only → VERIFY: modify 1 note, only that note re-embedded |
+| **T26** | Document summary embedding | INPUT: note → OUTPUT: title+summary embedded separately → VERIFY: doc-level search works |
+
+### Sprint 6: Hybrid Search + Related Notes (1 tuần)
+
+| Task | Mô tả | INPUT → OUTPUT → VERIFY |
+|------|-------|------------------------|
+| **T27** | Hybrid search API | INPUT: `GET /api/search?q=...&mode=hybrid` → OUTPUT: `score = 0.7*vector + 0.3*keyword` → VERIFY: hybrid > FTS-only |
+| **T28** | Related notes API | INPUT: `GET /api/notes/{path}/related` → OUTPUT: top-5 by average chunk similarity → VERIFY: meaningful |
+| **T29** | Related notes UI | INPUT: open note → OUTPUT: "Related Notes" in right panel → VERIFY: click → open |
+| **T30** | Search mode toggle | INPUT: UI toggle → OUTPUT: keyword / semantic / hybrid → VERIFY: different results |
+
+**Verification checklist:**
+- [ ] Toàn bộ vault chunked + embedded + Qdrant
+- [ ] Semantic search trả kết quả đúng ngữ nghĩa
+- [ ] Hybrid search tốt hơn single-mode
+- [ ] Related notes gợi ý đúng topic
+- [ ] Incremental indexing chỉ re-embed changed notes
+- [ ] Doc summary embedding helps recall
+
+---
+
+## 11. Phase 4: RAG Chat & AI Assistant
+
+**Mục tiêu:** Chat với vault, AI trả lời có citation
+**Thời gian:** 2-3 tuần
+**Design doc:** `docs/DESIGN-graph-vector-reasoning.md`
+
+### Sprint 7: RAG Core (1-2 tuần)
+
+| Task | Mô tả | INPUT → OUTPUT → VERIFY |
+|------|-------|------------------------|
+| **T31** | Ollama integration | INPUT: prompt → OUTPUT: streaming response via Ollama API → VERIFY: stream works |
+| **T32** | Graph+Vector retrieval | INPUT: query → OUTPUT: vector top-10 → extract notes → BFS 1-hop → chunk selection → VERIFY: better recall |
+| **T33** | RAG pipeline | INPUT: query → OUTPUT: retrieve → context (≤2000 tokens) → prompt → generate → cite → VERIFY: answer + sources |
+| **T34** | Chat API | INPUT: `POST /api/chat` → OUTPUT: SSE stream + source links → VERIFY: streaming |
+| **T35** | Chat UI panel | INPUT: AI panel → OUTPUT: chat with source links → VERIFY: click source → open note |
+
+### Sprint 8: Multi-mode AI (1 tuần)
+
+| Task | Mô tả | INPUT → OUTPUT → VERIFY |
+|------|-------|------------------------|
+| **T36** | Summary mode | INPUT: note path → OUTPUT: AI summary markdown → VERIFY: giữ ý chính |
+| **T37** | Auto-link suggestion | INPUT: note save → OUTPUT: AI gợi ý `[[links]]` → VERIFY: suggestions relevant |
+| **T38** | Mode selector UI | INPUT: dropdown → OUTPUT: Chat / Summary / Explore → VERIFY: each mode works |
+
+**Verification checklist:**
+- [ ] Chat trả lời đúng + citation click được
+- [ ] Graph expansion cải thiện recall
+- [ ] Không hallucinate
+- [ ] Streaming response
+- [ ] Summary đúng
+- [ ] Auto-link suggestion relevant
+
+---
+
+## 12. Phase 5: AI Intelligence & Knowledge Insights
+
+**Mục tiêu:** AI chủ động gợi ý, tổng hợp
+**Thời gian:** 2-3 tuần
+**Design doc:** `docs/DESIGN-memory-layer.md`
+
+### Sprint 9: Research Threads + Memory (1-2 tuần)
+
+| Task | Mô tả | INPUT → OUTPUT → VERIFY |
+|------|-------|------------------------|
+| **T39** | Research thread system | INPUT: create thread → OUTPUT: track notes + questions + concepts → VERIFY: persisted |
+| **T40** | Session memory | INPUT: chat → OUTPUT: AI remembers within session → VERIFY: follow-up works |
+| **T41** | Long-term memory | INPUT: AI insights → OUTPUT: `knowledge/memory/` notes → VERIFY: AI recalls |
+| **T42** | Research threads UI | INPUT: sidebar → OUTPUT: thread list, click → filtered view → VERIFY: visual |
+
+### Sprint 10: Knowledge Insights (1 tuần)
+
+| Task | Mô tả | INPUT → OUTPUT → VERIFY |
+|------|-------|------------------------|
+| **T43** | Weekly synthesis | INPUT: trigger → OUTPUT: weekly summary note → VERIFY: note with links |
+| **T44** | Topic clustering | INPUT: vault → OUTPUT: cluster on graph (color-coded) → VERIFY: meaningful |
+| **T45** | Low-connected notes | INPUT: graph → OUTPUT: orphaned notes highlighted → VERIFY: accurate |
+
+**Verification checklist:**
+- [ ] Research thread track notes + questions
+- [ ] Memory persists across sessions
+- [ ] Weekly synthesis có ý nghĩa
+- [ ] Topic clustering trên graph
+- [ ] Low-connected notes detection accurate
+
+---
+
+## 13. Phase 6: Infrastructure & Deploy
+
+**Mục tiêu:** Docker deploy, eval, cache
+**Thời gian:** 1-2 tuần
+
+### Sprint 11: Deploy (1-2 tuần)
+
+| Task | Mô tả | INPUT → OUTPUT → VERIFY |
+|------|-------|------------------------|
+| **T46** | Docker Compose | INPUT: yml → OUTPUT: FastAPI + Qdrant + Ollama → VERIFY: `docker compose up` |
+| **T47** | Cloudflare Tunnel | INPUT: config → OUTPUT: HTTPS external → VERIFY: phone access |
+| **T48** | RAG eval loop | INPUT: questions.json → OUTPUT: relevance scores → VERIFY: logged |
+| **T49** | Cache strategy | INPUT: repeated queries → OUTPUT: LRU cache → VERIFY: faster repeat |
+
+---
+
+## 14. Dependency Graph
+
+```
+Phase 1 (DONE ✅)
+    │
+    ▼
+Sprint 2.5: Refactor (T09-T12)
+    │
+    ▼
+Phase 2: Capture (T13-T21)
+    │
+    ▼
+Phase 3: Semantic Search (T22-T30)
+    │
+    ▼
+Phase 4: RAG Chat (T31-T38)
+    │
+    ├────────────────────┐
+    ▼                    ▼
+Phase 5 (T39-T45)    Phase 6 (T46-T49)
+```
+
+---
+
+## 15. Sprint Timeline
+
+| Sprint | Phase | Nội dung | Thời gian |
+|--------|-------|----------|-----------|
+| 1-2 | Phase 1 | Solid Knowledge Base | **DONE** ✅ |
+| 2.5 | Refactor | Pipeline + async queue | 3-5 ngày |
+| 3 | Phase 2a | Capture API + Scraper | 1 tuần |
+| 4 | Phase 2b | Telegram + Inbox UI | 1-2 tuần |
+| 5 | Phase 3a | Chunking + Embedding + Qdrant | 1-2 tuần |
+| 6 | Phase 3b | Hybrid Search + Related Notes | 1 tuần |
+| 7 | Phase 4a | Ollama + Graph+Vector RAG | 1-2 tuần |
+| 8 | Phase 4b | Summary + Auto-link + Modes | 1 tuần |
+| 9 | Phase 5a | Research Threads + Memory | 1-2 tuần |
+| 10 | Phase 5b | Clustering + Insights | 1 tuần |
+| 11 | Phase 6 | Docker + Tunnel + Eval | 1-2 tuần |
+
+**Tổng: ~13-16 tuần. Solo evenings/weekends: ~4-6 tháng.**
+
+---
+
+## 16. Anti-scope
+
+- ❌ Notion clone (database views, kanban)
+- ❌ Multi-user / collaborative editing
+- ❌ Mobile native app
+- ❌ Cloud deploy phức tạp
+- ❌ Prometheus/Grafana (quá sớm)
+- ❌ Reranker (vault < 5000 notes)
+- ❌ AI auto-organize
+- ❌ Tag suggestion (thay bằng auto-link)
+
+---
+
+## 17. Risks & Mitigations
+
+| Risk | Mitigation |
+|------|------------|
+| Capture spam inbox | Daily rotate, limit entry size |
+| URL scraping fail | Fallback: lưu URL + user context |
+| Embedding OOM | Batch 32, CPU fallback |
+| LLM hallucinate | Strict RAG prompt + citation |
+| Watcher + embedding race | Async queue sequential |
+| Feature creep | Verify phase trước khi mở phase mới |
+| Graph expansion noisy | depth=1, max_neighbors=5 |
+| **Concurrent inbox write** | **`asyncio.Lock()` per-file** (không lock global) |
+| **trafilatura block event loop** | **`asyncio.to_thread()` cho CPU-heavy sync calls** |
+| **Circular service deps** | **Xem `BACKEND-SERVICE-BOUNDARIES.md`** |
+
+---
+
+## 18. Design Documents
+
+| Document | Mô tả | Phase |
+|----------|-------|-------|
+| `docs/DESIGN-ingestion-pipeline.md` | Capture → Inbox → Vault pipeline | 2 |
+| `docs/DESIGN-chunking-retrieval.md` | Chunking + Hybrid search + RAG prompt | 3 |
+| `docs/DESIGN-graph-vector-reasoning.md` | Graph expansion + Hybrid reasoning | 4 |
+| `docs/DESIGN-ui-layout.md` | 4-panel layout, wireframes | 2-4 |
+| `docs/DESIGN-memory-layer.md` | Memory + Research threads | 5 |
+| `docs/BACKEND-SERVICE-BOUNDARIES.md` | Dependency graph, async rules, concurrency | Pre-Phase 2 |
+
+---
+
+## 19. Tóm tắt quyết định
+
+```
+✅ Markdown = source of truth
+✅ Capture = append markdown entry → zero friction
+✅ Schema chốt từ đầu → không migrate
+✅ AI = augment, manual luôn hoạt động
+✅ Home server (Ubuntu + RTX 4060 Ti)
+✅ Qdrant vector search (self-hosted)
+✅ Ollama + Qwen2.5 RAG (local, tiếng Việt)
+✅ Graph + Vector hybrid reasoning
+✅ Hybrid search: 0.7v + 0.3k weighted fusion
+✅ Chunk: heading + paragraph, 300-500 tokens
+✅ Bỏ reranker, bỏ Prometheus (quá sớm)
+✅ Auto-link suggestion thay tag suggestion
+✅ Service boundaries: API → Service → Storage, never reverse
+✅ asyncio.Lock() per-file cho inbox concurrent write
+✅ asyncio.to_thread() cho CPU-heavy sync (trafilatura, embedding)
+✅ Inbox type = UI hint only (link/quote/note), AI đọc content
+✅ Low-connected notes thay knowledge gap detection
+✅ Infra: Docker Compose only
+```

@@ -65,17 +65,27 @@ class FileService:
                 continue
             if entry.is_dir():
                 children = self._build_tree(entry)
+                try:
+                    ctime = entry.stat().st_ctime
+                except OSError:
+                    ctime = 0.0
                 items.append(FileTreeItem(
                     name=entry.name,
                     path=self._relative(entry),
                     is_dir=True,
+                    created_at=ctime,
                     children=children,
                 ))
             elif self._is_markdown(entry):
+                try:
+                    ctime = entry.stat().st_ctime
+                except OSError:
+                    ctime = 0.0
                 items.append(FileTreeItem(
                     name=entry.stem,
                     path=self._relative(entry),
                     is_dir=False,
+                    created_at=ctime,
                 ))
         return items
 

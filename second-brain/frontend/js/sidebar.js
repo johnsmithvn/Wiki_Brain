@@ -12,6 +12,7 @@ let onNoteSelect = null;
 let onNewNote = null;
 let dragSourcePath = null;  // For drag & drop
 let inlineRename = null;
+let sortMode = 'time';  // 'time' (newest first) or 'alpha'
 const UNTITLED_PREFIX = 'Untitled';
 const MAX_UNTITLED_INDEX = 5000;
 
@@ -25,6 +26,32 @@ export function initSidebar({ onSelect, onNew }) {
     document.getElementById('btn-quick-add-file')?.addEventListener('click', () => handleQuickAddNote());
     document.getElementById('btn-quick-add-folder')?.addEventListener('click', () => handleQuickAddFolder());
     document.getElementById('file-tree')?.addEventListener('contextmenu', handleBlankTreeContextMenu);
+    document.getElementById('btn-sort-toggle')?.addEventListener('click', toggleSort);
+
+    // Root-level drop zone: drag a file out of a folder to root
+    const fileTree = document.getElementById('file-tree');
+    if (fileTree) {
+        fileTree.addEventListener('dragover', (e) => {
+            // Only show drop indicator on the container itself, not on children
+            if (e.target === fileTree || e.target.closest('.tree-item') === null) {
+                e.preventDefault();
+                fileTree.classList.add('drag-over-root');
+            }
+        });
+        fileTree.addEventListener('dragleave', (e) => {
+            if (e.target === fileTree || !fileTree.contains(e.relatedTarget)) {
+                fileTree.classList.remove('drag-over-root');
+            }
+        });
+        fileTree.addEventListener('drop', (e) => {
+            fileTree.classList.remove('drag-over-root');
+            // Only handle drops on the container itself (root level)
+            if (e.target === fileTree || e.target.closest('.tree-folder-item') === null) {
+                e.preventDefault();
+                handleDrop('');  // empty = root
+            }
+        });
+    }
 
     loadTree();
     loadTags();
@@ -49,6 +76,41 @@ export async function loadTags() {
     }
 }
 
+function sortTreeItems(items) {
+    const sorted = [...items];
+    sorted.sort((a, b) => {
+        // Folders always first
+        if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1;
+        if (sortMode === 'time') {
+            // Newest first (higher created_at = newer)
+            return (b.created_at || 0) - (a.created_at || 0);
+        }
+        // Alphabetical
+        return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+    });
+    // Recursively sort children
+    return sorted.map(item => {
+        if (item.is_dir && item.children?.length) {
+            return { ...item, children: sortTreeItems(item.children) };
+        }
+        return item;
+    });
+}
+
+function toggleSort() {
+    sortMode = sortMode === 'time' ? 'alpha' : 'time';
+    const btn = document.getElementById('btn-sort-toggle');
+    if (btn) {
+        const icon = btn.querySelector('i');
+        if (icon) {
+            icon.setAttribute('data-lucide', sortMode === 'time' ? 'arrow-down-wide-narrow' : 'arrow-down-a-z');
+        }
+        btn.title = sortMode === 'time' ? 'Sort: Newest first' : 'Sort: Alphabetical';
+    }
+    renderTree(treeData);
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
 function renderTree(items) {
     const container = document.getElementById('file-tree');
     container.innerHTML = '';
@@ -56,8 +118,9 @@ function renderTree(items) {
         container.innerHTML = `<div style="padding:var(--sp-4);color:var(--text-muted);font-size:var(--text-sm)">No notes yet. Create one!</div>`;
         return;
     }
+    const sorted = sortTreeItems(items);
     const frag = document.createDocumentFragment();
-    buildTreeNodes(items, frag, 0);
+    buildTreeNodes(sorted, frag, 0);
     container.appendChild(frag);
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
