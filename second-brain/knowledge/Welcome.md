@@ -23,3 +23,4 @@ This is your personal knowledge base. Start creating notes and connecting your i
 Check out [[Getting Started]] for more tips!
 
 #welcome #second-brain
+#meo2

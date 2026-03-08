@@ -20,6 +20,19 @@ Mục tiêu của plan này:
 - Kiến trúc sẵn sàng để mở rộng sang Phase 2-5 mà không cần rewrite lớn.
 - Có checklist verification + tiêu chí đo chất lượng cho mỗi phase.
 
+## Progress Update (2026-03-08)
+- Sprint 1 core status:
+  - `T01` completed
+  - `T02` completed
+  - `T03` completed
+  - `T04` completed
+- UX follow-up patch status:
+  - Sidebar blank-area context menu: completed
+  - Shortcuts help popup with table + explanation: completed
+  - Inline rename for quick add folder/file and double-click rename: completed
+- Next implementation focus:
+  - Sprint 2 (`T05` to `T08`) remains the primary next milestone.
+
 ## Tech Stack (Current + Planned)
 - Current:
   - Backend: FastAPI, aiofiles
@@ -56,7 +69,7 @@ Mục tiêu của plan này:
 
 ### Phase 1 — Solid Knowledge Base (Execution Now)
 
-- [ ] **T01: Baseline + dependency hardening**
+- [x] **T01: Baseline + dependency hardening**
   - Agent: `backend-specialist`
   - Skill: `clean-code`
   - Priority: P0
@@ -66,7 +79,7 @@ Mục tiêu của plan này:
     - Output: baseline matrix (feature hiện có/chưa có), requirements update (`watchdog`)
     - Verify: app khởi động bình thường, không regression endpoint hiện hữu
 
-- [ ] **T02: Template discovery API + model**
+- [x] **T02: Template discovery API + model**
   - Agent: `backend-specialist`
   - Skill: `api-patterns`
   - Priority: P0
@@ -76,7 +89,7 @@ Mục tiêu của plan này:
     - Output: API trả danh sách template + API đọc template content
     - Verify: gọi API trả đúng metadata/template content; lỗi path traversal bị chặn
 
-- [ ] **T03: New note flow with template chooser UI**
+- [x] **T03: New note flow with template chooser UI**
   - Agent: `frontend-specialist`
   - Skill: `frontend-design`
   - Priority: P1
@@ -86,7 +99,7 @@ Mục tiêu của plan này:
     - Output: popup chọn template, tạo note mới từ template, fallback “blank note”
     - Verify: thao tác keyboard tạo note đúng nội dung template và mở note mới thành công
 
-- [ ] **T04: File watcher + auto-reindex pipeline hook**
+- [x] **T04: File watcher + auto-reindex pipeline hook**
   - Agent: `backend-specialist`
   - Skill: `python-patterns`
   - Priority: P0

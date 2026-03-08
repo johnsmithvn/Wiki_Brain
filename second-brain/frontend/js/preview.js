@@ -79,7 +79,7 @@ export function renderMarkdown(content, container) {
             const searchInput = document.getElementById('search-input');
             document.getElementById('search-modal').classList.remove('hidden');
             searchInput.value = `#${tag.dataset.tag}`;
-            searchInput.dispatchEvent(new Event('input'));
+            searchInput.dispatchEvent(new Event('input', { bubbles: true }));
             searchInput.focus();
         });
     });

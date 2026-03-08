@@ -14,6 +14,7 @@ import { initToolbar } from './toolbar.js';
 import { initQuickCapture, openQuickCapture } from './quick-capture.js';
 import { initSlashMenu } from './slash-menu.js';
 import { openTemplateModal } from './template-modal.js';
+import { openShortcutsModal } from './shortcuts-modal.js';
 
 const EXTERNAL_SYNC_MS = 4000;
 
@@ -53,6 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tab.addEventListener('click', () => switchView(tab.dataset.view));
     });
 
+    document.getElementById('btn-shortcuts-help')?.addEventListener('click', openShortcutsModal);
     document.getElementById('btn-toggle-right-panel').addEventListener('click', toggleRightPanel);
 });
 
@@ -394,6 +396,12 @@ function handleGlobalShortcuts(e) {
     if (e.ctrlKey && e.shiftKey && e.key === 'N') {
         e.preventDefault();
         openQuickCapture();
+        return;
+    }
+
+    if (e.altKey && e.key === '/') {
+        e.preventDefault();
+        openShortcutsModal();
         return;
     }
 

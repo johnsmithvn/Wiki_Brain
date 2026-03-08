@@ -11,6 +11,7 @@ let tagData = [];
 let onNoteSelect = null;
 let onNewNote = null;
 let dragSourcePath = null;  // For drag & drop
+let inlineRename = null;
 const UNTITLED_PREFIX = 'Untitled';
 const MAX_UNTITLED_INDEX = 5000;
 
@@ -23,6 +24,7 @@ export function initSidebar({ onSelect, onNew }) {
     document.getElementById('btn-new-note').addEventListener('click', () => requestNewNote());
     document.getElementById('btn-quick-add-file')?.addEventListener('click', () => handleQuickAddNote());
     document.getElementById('btn-quick-add-folder')?.addEventListener('click', () => handleQuickAddFolder());
+    document.getElementById('file-tree')?.addEventListener('contextmenu', handleBlankTreeContextMenu);
 
     loadTree();
     loadTags();
@@ -57,6 +59,7 @@ function renderTree(items) {
     const frag = document.createDocumentFragment();
     buildTreeNodes(items, frag, 0);
     container.appendChild(frag);
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function buildTreeNodes(items, parent, depth) {
@@ -71,7 +74,7 @@ function buildTreeNodes(items, parent, depth) {
             toggle.innerHTML = `
                 <span class="tree-folder-toggle open"><i data-lucide="chevron-right" style="width:12px;height:12px"></i></span>
                 <i data-lucide="folder" style="width:14px;height:14px;color:var(--accent);opacity:0.7"></i>
-                <span>${escapeHtml(item.name)}</span>
+                <span class="tree-item-label">${escapeHtml(item.name)}</span>
             `;
 
             const children = document.createElement('div');
@@ -84,6 +87,13 @@ function buildTreeNodes(items, parent, depth) {
                 children.classList.toggle('collapsed');
             });
 
+            const folderLabel = toggle.querySelector('.tree-item-label');
+            folderLabel?.addEventListener('dblclick', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                beginInlineRename(item.path, true);
+            });
+
             // Context menu on folders
             toggle.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
@@ -93,6 +103,7 @@ function buildTreeNodes(items, parent, depth) {
                     { type: 'separator' },
                     { label: 'New Note Here', icon: 'file-plus', action: () => requestNewNote(item.path) },
                     { label: 'New Folder', icon: 'folder-plus', action: () => handleNewFolder(item.path) },
+                    { label: 'Rename Folder', icon: 'pencil', action: () => beginInlineRename(item.path, true) },
                 ]);
             });
 
@@ -113,10 +124,17 @@ function buildTreeNodes(items, parent, depth) {
             noteEl.dataset.path = item.path;
             noteEl.innerHTML = `
                 <i data-lucide="file-text" style="width:14px;height:14px"></i>
-                <span>${escapeHtml(item.name)}</span>
+                <span class="tree-item-label">${escapeHtml(item.name)}</span>
             `;
             noteEl.addEventListener('click', () => {
                 if (onNoteSelect) onNoteSelect(item.path);
+            });
+
+            const noteLabel = noteEl.querySelector('.tree-item-label');
+            noteLabel?.addEventListener('dblclick', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                beginInlineRename(item.path, false);
             });
 
             // Drag start
@@ -133,7 +151,7 @@ function buildTreeNodes(items, parent, depth) {
                 e.preventDefault();
                 showContextMenu(e, [
                     { label: 'Open', icon: 'file-text', action: () => onNoteSelect?.(item.path) },
-                    { label: 'Rename', icon: 'pencil', action: () => handleRename(item.path) },
+                    { label: 'Rename', icon: 'pencil', action: () => beginInlineRename(item.path, false) },
                     { type: 'separator' },
                     { label: 'Delete', icon: 'trash-2', danger: true, action: () => handleDelete(item.path) },
                 ]);
@@ -142,8 +160,6 @@ function buildTreeNodes(items, parent, depth) {
             parent.appendChild(noteEl);
         }
     }
-    // Re-init Lucide icons in this subtree
-    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function renderTags(tags) {
@@ -193,40 +209,17 @@ function renderTags(tags) {
 }
 
 async function toggleTagExplorer(tagName, chipEl, container) {
-    // Remove existing tag-explorer panels
-    container.querySelectorAll('.tag-explorer-panel').forEach(p => p.remove());
-
-    // If this chip is already expanded, just close
-    if (chipEl.classList.contains('tag-expanded')) {
-        chipEl.classList.remove('tag-expanded');
+    // Open the search modal with #tagName prefilled
+    const modal = document.getElementById('search-modal');
+    const input = document.getElementById('search-input');
+    if (!modal || !input) {
+        console.error('Search modal elements not found');
         return;
     }
-    // Close any other expanded
-    container.querySelectorAll('.tag-expanded').forEach(c => c.classList.remove('tag-expanded'));
-    chipEl.classList.add('tag-expanded');
-
-    try {
-        const notes = await api.getNotesByTag(tagName);
-        const panel = document.createElement('div');
-        panel.className = 'tag-explorer-panel';
-        panel.style.cssText = 'width:100%;padding:var(--sp-1) 0;';
-
-        (notes || []).forEach(note => {
-            const item = document.createElement('div');
-            item.className = 'tree-item';
-            item.style.cssText = 'padding-left:var(--sp-4);font-size:var(--text-xs);';
-            item.innerHTML = `<i data-lucide="file-text" style="width:12px;height:12px"></i> <span>${escapeHtml(note.title || note.path)}</span>`;
-            item.addEventListener('click', () => { if (onNoteSelect) onNoteSelect(note.path); });
-            panel.appendChild(item);
-        });
-
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-
-        // Insert panel right after the chip row
-        container.appendChild(panel);
-    } catch (e) {
-        console.error('Failed to load tag notes:', e);
-    }
+    modal.classList.remove('hidden');
+    input.value = `#${tagName}`;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.focus();
 }
 
 function normalizePath(path = '') {
@@ -286,6 +279,152 @@ function getNextUntitledName(parentPath = '', isDir = false) {
 
 function isConflictError(error) {
     return /already exists/i.test(error?.message || '');
+}
+
+function escapeSelector(value = '') {
+    if (typeof CSS !== 'undefined' && CSS.escape) {
+        return CSS.escape(value);
+    }
+    return String(value).replace(/["\\]/g, '\\$&');
+}
+
+function getRenameTarget(path, isDir) {
+    const selector = isDir
+        ? `.tree-folder-item[data-folder-path="${escapeSelector(path)}"] .tree-item-label`
+        : `.tree-item[data-path="${escapeSelector(path)}"] .tree-item-label`;
+    return document.querySelector(selector);
+}
+
+function getParentPath(path) {
+    const normalized = normalizePath(path);
+    const parts = normalized.split('/');
+    parts.pop();
+    return parts.join('/');
+}
+
+function handleBlankTreeContextMenu(e) {
+    if (e.target.closest('.tree-item')) return;
+    e.preventDefault();
+    showContextMenu(e, [
+        { label: 'Quick Add Note', icon: 'file-plus', action: () => handleQuickAddNote() },
+        { label: 'Quick Add Folder', icon: 'folder-plus', action: () => handleQuickAddFolder() },
+        { type: 'separator' },
+        { label: 'New Note', icon: 'file-plus', action: () => requestNewNote() },
+        { label: 'New Folder', icon: 'folder-plus', action: () => handleNewFolder('') },
+    ]);
+}
+
+function cancelInlineRename() {
+    if (!inlineRename) return;
+    inlineRename.cancelled = true;
+    inlineRename.input.remove();
+    inlineRename.label.style.display = '';
+    inlineRename = null;
+}
+
+function createInlineInput(label, initialValue) {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'tree-inline-rename';
+    input.value = initialValue;
+    label.style.display = 'none';
+    label.parentElement.appendChild(input);
+    input.addEventListener('click', (e) => e.stopPropagation());
+    input.addEventListener('mousedown', (e) => e.stopPropagation());
+    input.addEventListener('dblclick', (e) => e.stopPropagation());
+    input.focus();
+    input.select();
+    return input;
+}
+
+async function commitInlineRename() {
+    if (!inlineRename || inlineRename.pending) return;
+    inlineRename.pending = true;
+
+    const { path, isDir, label, input, originalName } = inlineRename;
+    const nextName = input.value.trim();
+    if (!nextName || nextName === originalName) {
+        cancelInlineRename();
+        return;
+    }
+
+    const parentPath = getParentPath(path);
+    const newPath = isDir
+        ? joinPath(parentPath, nextName)
+        : joinPath(parentPath, `${nextName}.md`);
+
+    try {
+        if (isDir) {
+            await api.renameFolder(path, newPath);
+            await loadTree();
+            const activePrefix = `${normalizePath(path)}/`;
+            if (activeNotePath?.startsWith(activePrefix) && onNoteSelect) {
+                const suffix = activeNotePath.slice(activePrefix.length);
+                onNoteSelect(joinPath(newPath, suffix));
+            }
+            showToast(`Renamed folder to: ${nextName}`, 'success');
+        } else {
+            await api.renameNote(path, newPath);
+            await loadTree();
+            await loadTags();
+            if (activeNotePath === path && onNoteSelect) {
+                onNoteSelect(newPath);
+            }
+            showToast(`Renamed to: ${nextName}`, 'success');
+        }
+        label.textContent = nextName;
+        input.remove();
+        label.style.display = '';
+        inlineRename = null;
+    } catch (e) {
+        showToast(`Rename failed: ${e.message}`, 'error');
+        inlineRename.pending = false;
+        input.focus();
+        input.select();
+    }
+}
+
+function beginInlineRename(path, isDir) {
+    cancelInlineRename();
+
+    const label = getRenameTarget(path, isDir);
+    if (!label) {
+        if (isDir) {
+            handleRenameFolder(path);
+        } else {
+            handleRename(path);
+        }
+        return;
+    }
+
+    const originalName = isDir ? label.textContent.trim() : label.textContent.trim();
+    const input = createInlineInput(label, originalName);
+    inlineRename = {
+        path,
+        isDir,
+        label,
+        input,
+        originalName,
+        pending: false,
+        cancelled: false,
+    };
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            commitInlineRename();
+            return;
+        }
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            cancelInlineRename();
+        }
+    });
+
+    input.addEventListener('blur', () => {
+        if (!inlineRename || inlineRename.cancelled) return;
+        commitInlineRename();
+    });
 }
 
 async function handleDrop(targetFolderPath) {
@@ -377,13 +516,8 @@ async function handleQuickAddNote(parentPath = '', attempt = 0) {
         await api.createNote(path, `# ${name}\n\n`);
         await loadTree();
         await loadTags();
-        const resolvedPath = await handleRename(path, {
-            title: 'Rename New Note',
-            placeholder: 'Untitled note',
-            skipSuccessToast: true,
-        });
-        if (onNoteSelect) onNoteSelect(resolvedPath);
-        showToast('Quick note created', 'success');
+        beginInlineRename(path, false);
+        showToast('Quick note created. Enter to save, Esc to cancel rename.', 'info');
     } catch (e) {
         if (isConflictError(e)) {
             await handleQuickAddNote(parentPath, attempt + 1);
@@ -404,12 +538,8 @@ async function handleQuickAddFolder(parentPath = '', attempt = 0) {
         const path = joinPath(parentPath, name);
         await api.createFolder(path);
         await loadTree();
-        await handleRenameFolder(path, {
-            title: 'Rename New Folder',
-            placeholder: 'Untitled folder',
-            skipSuccessToast: true,
-        });
-        showToast('Quick folder created', 'success');
+        beginInlineRename(path, true);
+        showToast('Quick folder created. Enter to save, Esc to cancel rename.', 'info');
     } catch (e) {
         if (isConflictError(e)) {
             await handleQuickAddFolder(parentPath, attempt + 1);

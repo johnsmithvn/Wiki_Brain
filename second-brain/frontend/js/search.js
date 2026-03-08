@@ -132,17 +132,23 @@ function showCommands(filter) {
 
 async function performSearch(query) {
     const results = document.getElementById('search-results');
-    if (!query.trim()) {
+    const trimmed = query.trim();
+    if (!trimmed) {
         showDefaultView();
         return;
     }
 
+    if (trimmed.startsWith('#')) {
+        await performTagSearch(trimmed, results);
+        return;
+    }
+
     try {
-        const data = await api.search(query);
+        const data = await api.search(trimmed);
         if (!data.results.length) {
             results.innerHTML = `
                 <div style="padding:var(--sp-4);text-align:center;color:var(--text-muted);font-size:var(--text-sm)">
-                    No results for "${escapeHtml(query)}"
+                    No results for "${escapeHtml(trimmed)}"
                 </div>
             `;
             return;
@@ -161,6 +167,47 @@ async function performSearch(query) {
         results.innerHTML = `
             <div style="padding:var(--sp-4);text-align:center;color:var(--text-muted);font-size:var(--text-sm)">
                 Search error: ${escapeHtml(e.message)}
+            </div>
+        `;
+    }
+}
+
+async function performTagSearch(query, results) {
+    const rawTag = query.slice(1).trim();
+    const tag = rawTag.split(/\s+/)[0]?.toLowerCase();
+    if (!tag) {
+        results.innerHTML = `
+            <div style="padding:var(--sp-4);text-align:center;color:var(--text-muted);font-size:var(--text-sm)">
+                Type a tag after #
+            </div>
+        `;
+        return;
+    }
+
+    try {
+        const notes = await api.getNotesByTag(tag);
+        if (!notes.length) {
+            results.innerHTML = `
+                <div style="padding:var(--sp-4);text-align:center;color:var(--text-muted);font-size:var(--text-sm)">
+                    No notes found for #${escapeHtml(tag)}
+                </div>
+            `;
+            return;
+        }
+
+        results.innerHTML = notes.map((note, i) => `
+            <div class="search-result-item${i === 0 ? ' selected' : ''}" data-path="${escapeHtml(note.path)}">
+                <div class="search-result-title">${escapeHtml(note.title || note.path)}</div>
+                <div class="search-result-path">${escapeHtml(note.path)}</div>
+                <div class="search-result-snippet">Tag search: #${escapeHtml(tag)}</div>
+            </div>
+        `).join('');
+
+        attachResultListeners(results);
+    } catch (e) {
+        results.innerHTML = `
+            <div style="padding:var(--sp-4);text-align:center;color:var(--text-muted);font-size:var(--text-sm)">
+                Tag search error: ${escapeHtml(e.message)}
             </div>
         `;
     }

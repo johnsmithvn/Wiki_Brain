@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.3.2 (2026-03-08)
+
+### Fixed
+- Clicking `#tag` in note preview now runs tag-aware search in command palette instead of FTS-only query
+
+## v0.3.1 (2026-03-08)
+
+### Added
+- Sidebar keyboard shortcuts help popup (table format) via topbar button and `Alt+/`
+- Inline rename directly in sidebar for files and folders (double-click label, `Enter` save, `Esc` cancel)
+
+### Fixed
+- Right-click on blank space under file list now opens context menu
+- Quick add folder/file now supports immediate inline rename flow without prompt modal
+
 ## v0.3.0 (2026-03-08)
 
 ### Added

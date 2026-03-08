@@ -141,6 +141,26 @@
     opacity: 0.6;
 }
 
+.tree-item-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tree-inline-rename {
+    flex: 1;
+    min-width: 0;
+    height: 24px;
+    border: 1px solid var(--accent);
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    border-radius: var(--radius-sm);
+    padding: 0 var(--sp-2);
+    font-size: var(--text-sm);
+    font-family: var(--font-sans);
+    outline: none;
+}
+
 .tree-item.active svg {
     opacity: 1;
 }

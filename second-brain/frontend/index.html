@@ -48,7 +48,7 @@
                 <button class="icon-btn" id="btn-daily-note" title="Daily note (Alt+D)">
                     <i data-lucide="calendar"></i>
                 </button>
-                <button class="icon-btn" id="btn-new-note" title="New note (Alt+N)">
+                <button class="icon-btn" id="btn-new-note" title="New note (Ctrl+N)">
                     <i data-lucide="file-plus"></i>
                 </button>
             </div>
@@ -82,6 +82,9 @@
                     <span>Second Brain</span>
                 </div>
                 <div class="topbar-actions">
+                    <button class="icon-btn" id="btn-shortcuts-help" title="Keyboard shortcuts">
+                        <i data-lucide="keyboard"></i>
+                    </button>
                     <button class="icon-btn" id="btn-toggle-right-panel" title="Toggle right panel">
                         <i data-lucide="panel-right-close"></i>
                     </button>
@@ -132,7 +135,7 @@
                 <div class="empty-state" id="empty-state">
                     <i data-lucide="brain" style="width:56px;height:56px;color:var(--accent);opacity:0.3"></i>
                     <h3>Welcome to Second Brain</h3>
-                    <p>Select a note from the sidebar or create a new one with <kbd style="background:var(--bg-elevated);padding:2px 6px;border-radius:3px;font-size:11px">Alt+N</kbd></p>
+                    <p>Select a note from the sidebar or create a new one with <kbd style="background:var(--bg-elevated);padding:2px 6px;border-radius:3px;font-size:11px">Ctrl+N</kbd></p>
                 </div>
 
                 <!-- Editor view (hidden by default) -->
@@ -236,6 +239,7 @@
     <script type="module" src="/js/quick-capture.js"></script>
     <script type="module" src="/js/slash-menu.js"></script>
     <script type="module" src="/js/template-modal.js"></script>
+    <script type="module" src="/js/shortcuts-modal.js"></script>
     <script type="module" src="/js/app.js"></script>
 </body>
 </html>
