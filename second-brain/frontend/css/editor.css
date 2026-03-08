@@ -1,0 +1,283 @@
+/* ============================================
+   EDITOR + PREVIEW STYLES
+   ============================================ */
+
+/* === CodeMirror Overrides === */
+.cm-editor {
+    height: 100%;
+    font-size: var(--text-base);
+    background: var(--bg-base) !important;
+}
+
+.cm-editor .cm-scroller {
+    font-family: var(--font-mono);
+    line-height: var(--leading-relaxed);
+    padding: var(--sp-4);
+}
+
+.cm-editor .cm-content {
+    padding: var(--sp-4) var(--sp-6);
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.cm-editor .cm-gutters {
+    background: var(--bg-base) !important;
+    border-right: 1px solid var(--border-subtle) !important;
+    color: var(--text-muted) !important;
+}
+
+.cm-editor .cm-activeLineGutter {
+    background: var(--bg-elevated) !important;
+}
+
+.cm-editor .cm-activeLine {
+    background: rgba(229, 165, 75, 0.04) !important;
+}
+
+.cm-editor .cm-selectionBackground {
+    background: var(--accent-soft) !important;
+}
+
+.cm-editor .cm-cursor {
+    border-left-color: var(--accent) !important;
+}
+
+.cm-editor .cm-line {
+    padding: 0 var(--sp-1);
+}
+
+/* Markdown syntax highlighting */
+.cm-header { color: var(--text-primary) !important; font-weight: 600; }
+.cm-header-1 { font-size: 1.6em; }
+.cm-header-2 { font-size: 1.35em; }
+.cm-header-3 { font-size: 1.15em; }
+.cm-strong { color: var(--text-primary) !important; font-weight: 700; }
+.cm-em { color: var(--text-primary) !important; font-style: italic; }
+.cm-link { color: var(--accent) !important; }
+.cm-url { color: var(--text-tertiary) !important; }
+.cm-inline-code {
+    background: var(--bg-elevated);
+    border-radius: 3px;
+    padding: 1px 4px;
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+}
+
+/* Wiki link highlight */
+.cm-wiki-link {
+    color: var(--accent) !important;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    cursor: pointer;
+}
+
+.cm-tag-inline {
+    color: var(--accent) !important;
+    opacity: 0.8;
+}
+
+/* === MARKDOWN PREVIEW === */
+.markdown-body {
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--leading-relaxed);
+    word-wrap: break-word;
+}
+
+.markdown-body h1, .markdown-body h2, .markdown-body h3,
+.markdown-body h4, .markdown-body h5, .markdown-body h6 {
+    color: var(--text-primary);
+    font-weight: 600;
+    line-height: var(--leading-tight);
+    margin-top: 1.6em;
+    margin-bottom: 0.6em;
+}
+
+.markdown-body h1 {
+    font-size: var(--text-2xl);
+    border-bottom: 1px solid var(--border-subtle);
+    padding-bottom: 0.3em;
+}
+
+.markdown-body h2 {
+    font-size: var(--text-xl);
+    border-bottom: 1px solid var(--border-subtle);
+    padding-bottom: 0.2em;
+}
+
+.markdown-body h3 { font-size: var(--text-lg); }
+.markdown-body h4 { font-size: var(--text-md); }
+
+.markdown-body p {
+    margin-bottom: 1em;
+}
+
+.markdown-body ul, .markdown-body ol {
+    padding-left: 1.8em;
+    margin-bottom: 1em;
+}
+
+.markdown-body li {
+    margin-bottom: 0.3em;
+}
+
+.markdown-body li::marker {
+    color: var(--text-tertiary);
+}
+
+.markdown-body blockquote {
+    border-left: 3px solid var(--accent);
+    padding: var(--sp-2) var(--sp-4);
+    margin: 1em 0;
+    color: var(--text-secondary);
+    background: var(--bg-elevated);
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.markdown-body code {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+    background: var(--bg-elevated);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--accent);
+}
+
+.markdown-body pre {
+    margin: 1em 0;
+    padding: var(--sp-4);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    overflow-x: auto;
+}
+
+.markdown-body pre code {
+    background: none;
+    padding: 0;
+    color: var(--text-primary);
+    font-size: var(--text-sm);
+}
+
+.markdown-body hr {
+    border: none;
+    border-top: 1px solid var(--border-subtle);
+    margin: 2em 0;
+}
+
+.markdown-body table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1em 0;
+}
+
+.markdown-body th, .markdown-body td {
+    border: 1px solid var(--border-subtle);
+    padding: var(--sp-2) var(--sp-3);
+    text-align: left;
+}
+
+.markdown-body th {
+    background: var(--bg-elevated);
+    font-weight: 600;
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+}
+
+.markdown-body img {
+    max-width: 100%;
+    border-radius: var(--radius-md);
+    margin: 1em 0;
+}
+
+.markdown-body a {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--accent-border);
+    transition: border-color var(--transition-fast);
+}
+
+.markdown-body a:hover {
+    border-bottom-style: solid;
+    border-color: var(--accent);
+}
+
+/* Wiki link in preview */
+.markdown-body .wiki-link {
+    color: var(--accent);
+    cursor: pointer;
+    border-bottom: 1px dotted var(--accent-border);
+    transition: all var(--transition-fast);
+}
+
+.markdown-body .wiki-link:hover {
+    border-bottom-style: solid;
+    background: var(--accent-soft);
+    border-radius: 2px;
+    padding: 0 2px;
+}
+
+.markdown-body .wiki-link.broken {
+    color: var(--danger);
+    border-color: var(--danger);
+    opacity: 0.7;
+}
+
+/* Task lists */
+.markdown-body .task-list-item {
+    list-style: none;
+    margin-left: -1.4em;
+}
+
+.markdown-body .task-list-item input[type="checkbox"] {
+    margin-right: 0.4em;
+    accent-color: var(--accent);
+}
+
+/* Inline tag */
+.markdown-body .inline-tag {
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-size: 0.9em;
+    cursor: pointer;
+}
+
+/* Callout blocks */
+.markdown-body .callout {
+    border-left: 3px solid;
+    padding: var(--sp-3) var(--sp-4);
+    margin: 1em 0;
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.markdown-body .callout.info {
+    border-color: var(--info);
+    background: rgba(96, 165, 250, 0.08);
+}
+
+.markdown-body .callout.warning {
+    border-color: var(--warning);
+    background: rgba(251, 191, 36, 0.08);
+}
+
+.markdown-body .callout.danger {
+    border-color: var(--danger);
+    background: rgba(248, 113, 113, 0.08);
+}
+
+.markdown-body .callout.success {
+    border-color: var(--success);
+    background: rgba(74, 222, 128, 0.08);
+}
+
+/* Search highlight */
+.markdown-body mark {
+    background: var(--accent-soft);
+    color: var(--accent);
+    padding: 1px 3px;
+    border-radius: 2px;
+}

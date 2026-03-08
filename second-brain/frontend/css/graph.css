@@ -1,0 +1,60 @@
+/* ============================================
+   GRAPH VIEW STYLES
+   ============================================ */
+
+.graph-node circle {
+    stroke: var(--border-default);
+    stroke-width: 1.5;
+    cursor: pointer;
+    transition: stroke var(--transition-fast);
+}
+
+.graph-node circle:hover {
+    stroke: var(--accent);
+    stroke-width: 2;
+}
+
+.graph-node.center circle {
+    fill: var(--accent);
+    stroke: var(--accent-hover);
+}
+
+.graph-node.connected circle {
+    fill: var(--bg-active);
+    stroke: var(--text-tertiary);
+}
+
+.graph-node text {
+    font-family: var(--font-sans);
+    font-size: 11px;
+    fill: var(--text-secondary);
+    pointer-events: none;
+    text-anchor: middle;
+    dominant-baseline: central;
+    dy: 20px;
+}
+
+.graph-link {
+    stroke: var(--border-default);
+    stroke-opacity: 0.4;
+    stroke-width: 1;
+}
+
+.graph-link:hover {
+    stroke: var(--accent);
+    stroke-opacity: 0.8;
+}
+
+.graph-tooltip {
+    position: absolute;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    padding: var(--sp-2) var(--sp-3);
+    font-size: var(--text-xs);
+    color: var(--text-primary);
+    pointer-events: none;
+    box-shadow: var(--shadow-md);
+    z-index: 100;
+    max-width: 200px;
+}

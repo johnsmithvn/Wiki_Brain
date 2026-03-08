@@ -1,0 +1,64 @@
+# ============================================
+# Second Brain - .gitignore
+# ============================================
+
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+
+# === Virtual Environment ===
+.venv/
+venv/
+env/
+ENV/
+
+# === IDE / Editor ===
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+
+# === OS ===
+.DS_Store
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+
+# === Application Data ===
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# === Logs ===
+*.log
+logs/
+
+# === Dependencies (if using npm for any reason) ===
+node_modules/
+
+# === Environment Variables ===
+.env
+.env.local
+.env.production
+
+# === Knowledge vault (user data - optional) ===
+# Uncomment the line below if you DON'T want to track your notes in git
+# knowledge/
+
+# === Misc ===
+*.bak
+*.tmp
+*.temp
+.cache/

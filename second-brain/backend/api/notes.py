@@ -1,0 +1,119 @@
+from fastapi import APIRouter, HTTPException
+
+from backend.models.schemas import (
+    FileTreeItem,
+    FolderCreate,
+    NoteContent,
+    NoteCreate,
+    NoteMetadata,
+    NoteRename,
+    NoteUpdate,
+)
+from backend.services.file_service import file_service
+from backend.services.index_service import index_service
+from backend.services.link_service import link_service
+from backend.services.tag_service import tag_service
+
+router = APIRouter(prefix="/api/notes", tags=["notes"])
+
+
+@router.get("/tree", response_model=list[FileTreeItem])
+async def get_file_tree():
+    return file_service.get_file_tree()
+
+
+@router.get("/list", response_model=list[NoteMetadata])
+async def list_notes():
+    notes = file_service.list_all_notes()
+    for note in notes:
+        note.tags = list(tag_service._note_tags.get(note.path, set()))
+    return notes
+
+
+@router.get("/{path:path}", response_model=NoteContent)
+async def get_note(path: str):
+    try:
+        content = await file_service.read_file(path)
+        metadata = file_service.get_metadata(path)
+        return NoteContent(
+            path=metadata.path,
+            title=metadata.title,
+            content=content,
+            created_at=metadata.created_at,
+            modified_at=metadata.modified_at,
+            tags=tag_service.extract_tags(content),
+            backlinks=link_service.get_backlinks(path),
+            forward_links=link_service.get_forward_links(path),
+        )
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Note not found: {path}")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("", response_model=NoteMetadata, status_code=201)
+async def create_note(data: NoteCreate):
+    try:
+        metadata = await file_service.write_file(data.path, data.content)
+        tags = tag_service.update_tags(metadata.path, data.content)
+        metadata.tags = tags
+        link_service.update_links(metadata.path, data.content)
+        index_service.index_note(metadata.path, metadata.title, data.content, tags)
+        return metadata
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.put("/{path:path}", response_model=NoteMetadata)
+async def update_note(path: str, data: NoteUpdate):
+    try:
+        metadata = await file_service.write_file(path, data.content)
+        tags = tag_service.update_tags(path, data.content)
+        metadata.tags = tags
+        link_service.update_links(path, data.content)
+        index_service.index_note(path, metadata.title, data.content, tags)
+        return metadata
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Note not found: {path}")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/{path:path}", status_code=204)
+async def delete_note(path: str):
+    try:
+        await file_service.delete_file(path)
+        index_service.remove_note(path)
+        link_service.remove_note(path)
+        tag_service.remove_note(path)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Note not found: {path}")
+
+
+@router.patch("/{path:path}/rename", response_model=NoteMetadata)
+async def rename_note(path: str, data: NoteRename):
+    try:
+        content = await file_service.read_file(path)
+        metadata = await file_service.rename_file(path, data.new_path)
+        # Update index references
+        index_service.remove_note(path)
+        link_service.remove_note(path)
+        tag_service.remove_note(path)
+        tags = tag_service.update_tags(metadata.path, content)
+        metadata.tags = tags
+        link_service.update_links(metadata.path, content)
+        index_service.index_note(metadata.path, metadata.title, content, tags)
+        return metadata
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Note not found: {path}")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/folder", status_code=201)
+async def create_folder(data: FolderCreate):
+    try:
+        file_service.create_folder(data.path)
+        return {"path": data.path}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

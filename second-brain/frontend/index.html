@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Second Brain — Personal Knowledge Base</title>
+    <meta name="description" content="A personal knowledge base with wiki-style linking and graph visualization">
+
+    <!-- Design System -->
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/editor.css">
+    <link rel="stylesheet" href="/css/graph.css">
+    <link rel="stylesheet" href="/css/components.css">
+
+    <!-- CodeMirror 6 -->
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@aspect-run/codemirror-bundle@1.0.2/dist/index.min.js"></script>
+
+    <!-- Marked.js -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@15.0.0/marked.min.js"></script>
+
+    <!-- D3.js -->
+    <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+
+    <!-- Lucide Icons -->
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- LEFT SIDEBAR -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-brand">
+                    <svg><use href="#icon-brain"/></svg>
+                    <span>Second Brain</span>
+                </div>
+                <button class="icon-btn" id="btn-collapse-sidebar" title="Toggle sidebar (Ctrl+B)">
+                    <i data-lucide="panel-left-close"></i>
+                </button>
+            </div>
+
+            <div class="sidebar-actions">
+                <div class="sidebar-search" id="btn-open-search" title="Search (Ctrl+K)">
+                    <i data-lucide="search"></i>
+                    <span>Search...</span>
+                    <kbd>Ctrl+K</kbd>
+                </div>
+                <button class="icon-btn" id="btn-new-note" title="New note (Ctrl+N)">
+                    <i data-lucide="file-plus"></i>
+                </button>
+            </div>
+
+            <div class="sidebar-section-title">Files</div>
+            <div class="file-tree" id="file-tree"></div>
+
+            <div class="sidebar-section-title">Tags</div>
+            <div class="tag-list" id="tag-list"></div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="main-area">
+            <!-- Top Bar -->
+            <div class="topbar">
+                <button class="icon-btn" id="btn-show-sidebar" title="Show sidebar (Ctrl+B)" style="display:none">
+                    <i data-lucide="panel-left-open"></i>
+                </button>
+                <div class="topbar-breadcrumb" id="breadcrumb">
+                    <i data-lucide="brain" style="width:16px;height:16px;color:var(--accent)"></i>
+                    <span>Second Brain</span>
+                </div>
+                <div class="topbar-actions">
+                    <button class="icon-btn" id="btn-toggle-right-panel" title="Toggle right panel">
+                        <i data-lucide="panel-right-close"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- View Tabs -->
+            <div class="view-tabs" id="view-tabs" style="display:none">
+                <button class="view-tab active" data-view="editor">
+                    <i data-lucide="edit-3" style="width:14px;height:14px;margin-right:4px"></i>
+                    Editor
+                </button>
+                <button class="view-tab" data-view="preview">
+                    <i data-lucide="eye" style="width:14px;height:14px;margin-right:4px"></i>
+                    Preview
+                </button>
+                <button class="view-tab" data-view="split">
+                    <i data-lucide="columns-2" style="width:14px;height:14px;margin-right:4px"></i>
+                    Split
+                </button>
+                <button class="view-tab" data-view="graph">
+                    <i data-lucide="git-branch" style="width:14px;height:14px;margin-right:4px"></i>
+                    Graph
+                </button>
+            </div>
+
+            <!-- Content Area -->
+            <div class="content-wrapper" id="content-wrapper">
+                <!-- Empty state (default) -->
+                <div class="empty-state" id="empty-state">
+                    <i data-lucide="brain" style="width:56px;height:56px;color:var(--accent);opacity:0.3"></i>
+                    <h3>Welcome to Second Brain</h3>
+                    <p>Select a note from the sidebar or create a new one with <kbd style="background:var(--bg-elevated);padding:2px 6px;border-radius:3px;font-size:11px">Ctrl+N</kbd></p>
+                </div>
+
+                <!-- Editor view (hidden by default) -->
+                <div class="editor-container hidden" id="editor-view">
+                    <div class="editor-pane" id="editor-pane"></div>
+                </div>
+
+                <!-- Preview view (hidden by default) -->
+                <div class="preview-pane hidden" id="preview-view">
+                    <div class="markdown-body" id="preview-content"></div>
+                </div>
+
+                <!-- Split view (hidden by default) -->
+                <div class="editor-container split-view hidden" id="split-view" style="flex-direction:row">
+                    <div class="editor-pane" id="split-editor-pane" style="flex:1"></div>
+                    <div class="split-divider"></div>
+                    <div class="preview-pane" id="split-preview-pane" style="flex:1;overflow-y:auto">
+                        <div class="markdown-body" id="split-preview-content"></div>
+                    </div>
+                </div>
+
+                <!-- Graph view (hidden by default) -->
+                <div class="graph-container hidden" id="graph-view">
+                    <div class="graph-controls">
+                        <button class="icon-btn" id="btn-graph-zoom-in" title="Zoom in">
+                            <i data-lucide="zoom-in"></i>
+                        </button>
+                        <button class="icon-btn" id="btn-graph-zoom-out" title="Zoom out">
+                            <i data-lucide="zoom-out"></i>
+                        </button>
+                        <button class="icon-btn" id="btn-graph-reset" title="Reset view">
+                            <i data-lucide="maximize-2"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status Bar -->
+            <div class="statusbar">
+                <div class="statusbar-left">
+                    <span id="status-notes-count">0 notes</span>
+                    <span id="status-save">Ready</span>
+                </div>
+                <div class="statusbar-right">
+                    <span id="status-words">0 words</span>
+                    <span id="status-chars">0 chars</span>
+                </div>
+            </div>
+        </main>
+
+        <!-- RIGHT PANEL -->
+        <aside class="right-panel" id="right-panel">
+            <div class="right-panel-section">
+                <div class="right-panel-title">Table of Contents</div>
+                <ul class="toc-list" id="toc-list"></ul>
+            </div>
+            <div class="right-panel-section">
+                <div class="right-panel-title">Backlinks</div>
+                <div id="backlinks-list">
+                    <div style="font-size:var(--text-xs);color:var(--text-muted)">No backlinks</div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Search Modal -->
+    <div class="modal-overlay hidden" id="search-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <i data-lucide="search"></i>
+                <input class="modal-search-input" id="search-input" type="text" placeholder="Search notes..." autofocus>
+            </div>
+            <div class="modal-body" id="search-results">
+                <div style="padding:var(--sp-4);text-align:center;color:var(--text-muted);font-size:var(--text-sm)">
+                    Type to search your knowledge base
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Context Menu (dynamically positioned) -->
+    <div class="context-menu hidden" id="context-menu"></div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- App Scripts (ES Modules) -->
+    <script type="module" src="/js/api.js"></script>
+    <script type="module" src="/js/sidebar.js"></script>
+    <script type="module" src="/js/editor.js"></script>
+    <script type="module" src="/js/preview.js"></script>
+    <script type="module" src="/js/search.js"></script>
+    <script type="module" src="/js/graph.js"></script>
+    <script type="module" src="/js/toc.js"></script>
+    <script type="module" src="/js/modal.js"></script>
+    <script type="module" src="/js/app.js"></script>
+</body>
+</html>
