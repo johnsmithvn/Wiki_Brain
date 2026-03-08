@@ -22,6 +22,12 @@ class NoteContent(BaseModel):
     forward_links: list[str] = Field(default_factory=list)
 
 
+class NoteMetaResponse(BaseModel):
+    path: str
+    modified_at: datetime | None = None
+    size: int = 0
+
+
 class NoteCreate(BaseModel):
     path: str
     content: str = ""
@@ -37,6 +43,11 @@ class NoteRename(BaseModel):
 
 class FolderCreate(BaseModel):
     path: str
+
+
+class FolderRename(BaseModel):
+    old_path: str
+    new_path: str
 
 
 class FileTreeItem(BaseModel):
@@ -84,3 +95,22 @@ class TagInfo(BaseModel):
 class TagListResponse(BaseModel):
     tags: list[TagInfo]
     total: int
+
+
+class TemplateInfo(BaseModel):
+    path: str
+    name: str
+    title: str
+    modified_at: datetime | None = None
+
+
+class TemplateListResponse(BaseModel):
+    templates: list[TemplateInfo]
+    total: int
+
+
+class TemplateContent(BaseModel):
+    path: str
+    title: str
+    content: str
+    modified_at: datetime | None = None

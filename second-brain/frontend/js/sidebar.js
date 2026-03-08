@@ -11,6 +11,8 @@ let tagData = [];
 let onNoteSelect = null;
 let onNewNote = null;
 let dragSourcePath = null;  // For drag & drop
+const UNTITLED_PREFIX = 'Untitled';
+const MAX_UNTITLED_INDEX = 5000;
 
 export function initSidebar({ onSelect, onNew }) {
     onNoteSelect = onSelect;
@@ -18,7 +20,9 @@ export function initSidebar({ onSelect, onNew }) {
 
     document.getElementById('btn-collapse-sidebar').addEventListener('click', toggleSidebar);
     document.getElementById('btn-show-sidebar').addEventListener('click', toggleSidebar);
-    document.getElementById('btn-new-note').addEventListener('click', () => handleNewNote());
+    document.getElementById('btn-new-note').addEventListener('click', () => requestNewNote());
+    document.getElementById('btn-quick-add-file')?.addEventListener('click', () => handleQuickAddNote());
+    document.getElementById('btn-quick-add-folder')?.addEventListener('click', () => handleQuickAddFolder());
 
     loadTree();
     loadTags();
@@ -84,7 +88,10 @@ function buildTreeNodes(items, parent, depth) {
             toggle.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
                 showContextMenu(e, [
-                    { label: 'New Note Here', icon: 'file-plus', action: () => handleNewNote(item.path) },
+                    { label: 'Quick Add Note', icon: 'file-plus', action: () => handleQuickAddNote(item.path) },
+                    { label: 'Quick Add Folder', icon: 'folder-plus', action: () => handleQuickAddFolder(item.path) },
+                    { type: 'separator' },
+                    { label: 'New Note Here', icon: 'file-plus', action: () => requestNewNote(item.path) },
                     { label: 'New Folder', icon: 'folder-plus', action: () => handleNewFolder(item.path) },
                 ]);
             });
@@ -222,21 +229,98 @@ async function toggleTagExplorer(tagName, chipEl, container) {
     }
 }
 
+function normalizePath(path = '') {
+    return String(path || '')
+        .replace(/\\/g, '/')
+        .replace(/^\/+|\/+$/g, '');
+}
+
+function joinPath(parentPath, childName) {
+    const parent = normalizePath(parentPath);
+    return parent ? `${parent}/${childName}` : childName;
+}
+
+function findTreeItemByPath(items, targetPath) {
+    const normalizedTarget = normalizePath(targetPath).toLowerCase();
+    for (const item of items) {
+        const itemPath = normalizePath(item.path).toLowerCase();
+        if (itemPath === normalizedTarget) return item;
+        if (item.is_dir && item.children?.length) {
+            const found = findTreeItemByPath(item.children, normalizedTarget);
+            if (found) return found;
+        }
+    }
+    return null;
+}
+
+function getFolderChildren(parentPath = '') {
+    const normalizedParent = normalizePath(parentPath);
+    if (!normalizedParent) return treeData;
+    const folder = findTreeItemByPath(treeData, normalizedParent);
+    if (!folder || !folder.is_dir) return [];
+    return folder.children || [];
+}
+
+function hasPathInTree(targetPath) {
+    const normalizedTarget = normalizePath(targetPath).toLowerCase();
+    if (!normalizedTarget) return false;
+    return Boolean(findTreeItemByPath(treeData, normalizedTarget));
+}
+
+function getNextUntitledName(parentPath = '', isDir = false) {
+    const children = getFolderChildren(parentPath);
+    const existingNames = new Set(
+        children
+            .filter(item => item.is_dir === isDir)
+            .map(item => item.name.toLowerCase())
+    );
+
+    for (let i = 1; i <= MAX_UNTITLED_INDEX; i += 1) {
+        const candidate = `${UNTITLED_PREFIX} ${i}`;
+        if (!existingNames.has(candidate.toLowerCase())) {
+            return candidate;
+        }
+    }
+    throw new Error('Unable to allocate Untitled name');
+}
+
+function isConflictError(error) {
+    return /already exists/i.test(error?.message || '');
+}
+
 async function handleDrop(targetFolderPath) {
     if (!dragSourcePath) return;
-    const fileName = dragSourcePath.split('/').pop();
-    const newPath = `${targetFolderPath}/${fileName}`;
+    const sourcePath = normalizePath(dragSourcePath);
+    const fileName = sourcePath.split('/').pop();
+    const newPath = joinPath(targetFolderPath, fileName);
 
-    if (newPath === dragSourcePath) return; // Same location
+    if (newPath.toLowerCase() === sourcePath.toLowerCase()) {
+        dragSourcePath = null;
+        return;
+    }
+    if (hasPathInTree(newPath)) {
+        showToast(`Move failed: destination already exists (${fileName})`, 'error');
+        dragSourcePath = null;
+        return;
+    }
 
     try {
-        await api.renameNote(dragSourcePath, newPath);
+        await api.renameNote(sourcePath, newPath);
         showToast(`Moved to ${targetFolderPath}`, 'success');
         await loadTree();
     } catch (e) {
         showToast(`Move failed: ${e.message}`, 'error');
+    } finally {
+        dragSourcePath = null;
     }
-    dragSourcePath = null;
+}
+
+function requestNewNote(parentPath = '') {
+    if (onNewNote) {
+        onNewNote(parentPath);
+        return;
+    }
+    handleNewNote(parentPath);
 }
 
 export function setActiveNote(path) {
@@ -256,7 +340,7 @@ function toggleSidebar() {
 async function handleNewNote(parentPath) {
     const name = await showPrompt('Enter note name:', '', { title: 'New Note', placeholder: 'My Note' });
     if (!name) return;
-    const path = parentPath ? `${parentPath}/${name}.md` : `${name}.md`;
+    const path = joinPath(parentPath, `${name}.md`);
     try {
         await api.createNote(path, `# ${name}\n\n`);
         await loadTree();
@@ -271,7 +355,7 @@ async function handleNewNote(parentPath) {
 async function handleNewFolder(parentPath) {
     const name = await showPrompt('Enter folder name:', '', { title: 'New Folder', placeholder: 'My Folder' });
     if (!name) return;
-    const path = parentPath ? `${parentPath}/${name}` : name;
+    const path = joinPath(parentPath, name);
     try {
         await api.createFolder(path);
         await loadTree();
@@ -281,13 +365,72 @@ async function handleNewFolder(parentPath) {
     }
 }
 
-async function handleRename(path) {
+async function handleQuickAddNote(parentPath = '', attempt = 0) {
+    if (attempt > 8) {
+        showToast('Quick add note failed: too many name collisions', 'error');
+        return;
+    }
+    try {
+        await loadTree();
+        const name = getNextUntitledName(parentPath, false);
+        const path = joinPath(parentPath, `${name}.md`);
+        await api.createNote(path, `# ${name}\n\n`);
+        await loadTree();
+        await loadTags();
+        const resolvedPath = await handleRename(path, {
+            title: 'Rename New Note',
+            placeholder: 'Untitled note',
+            skipSuccessToast: true,
+        });
+        if (onNoteSelect) onNoteSelect(resolvedPath);
+        showToast('Quick note created', 'success');
+    } catch (e) {
+        if (isConflictError(e)) {
+            await handleQuickAddNote(parentPath, attempt + 1);
+            return;
+        }
+        showToast(`Error: ${e.message}`, 'error');
+    }
+}
+
+async function handleQuickAddFolder(parentPath = '', attempt = 0) {
+    if (attempt > 8) {
+        showToast('Quick add folder failed: too many name collisions', 'error');
+        return;
+    }
+    try {
+        await loadTree();
+        const name = getNextUntitledName(parentPath, true);
+        const path = joinPath(parentPath, name);
+        await api.createFolder(path);
+        await loadTree();
+        await handleRenameFolder(path, {
+            title: 'Rename New Folder',
+            placeholder: 'Untitled folder',
+            skipSuccessToast: true,
+        });
+        showToast('Quick folder created', 'success');
+    } catch (e) {
+        if (isConflictError(e)) {
+            await handleQuickAddFolder(parentPath, attempt + 1);
+            return;
+        }
+        showToast(`Error: ${e.message}`, 'error');
+    }
+}
+
+async function handleRename(path, options = {}) {
     const currentName = path.split('/').pop().replace('.md', '');
-    const newName = await showPrompt('Enter new name:', currentName, { title: 'Rename Note' });
-    if (!newName || newName === currentName) return;
+    const newName = await showPrompt('Enter new name:', currentName, {
+        title: options.title || 'Rename Note',
+        placeholder: options.placeholder || currentName,
+    });
+    if (!newName || newName === currentName) return path;
+
     const parts = path.split('/');
     parts[parts.length - 1] = newName + '.md';
     const newPath = parts.join('/');
+
     try {
         await api.renameNote(path, newPath);
         await loadTree();
@@ -295,9 +438,43 @@ async function handleRename(path) {
         if (activeNotePath === path && onNoteSelect) {
             onNoteSelect(newPath);
         }
-        showToast(`Renamed to: ${newName}`, 'success');
+        if (!options.skipSuccessToast) {
+            showToast(`Renamed to: ${newName}`, 'success');
+        }
+        return newPath;
     } catch (e) {
         showToast(`Error: ${e.message}`, 'error');
+        return path;
+    }
+}
+
+async function handleRenameFolder(path, options = {}) {
+    const currentName = path.split('/').pop();
+    const newName = await showPrompt('Enter new folder name:', currentName, {
+        title: options.title || 'Rename Folder',
+        placeholder: options.placeholder || currentName,
+    });
+    if (!newName || newName === currentName) return path;
+
+    const parts = path.split('/');
+    parts[parts.length - 1] = newName;
+    const newPath = parts.join('/');
+
+    try {
+        await api.renameFolder(path, newPath);
+        await loadTree();
+        const activePrefix = `${normalizePath(path)}/`;
+        if (activeNotePath?.startsWith(activePrefix) && onNoteSelect) {
+            const suffix = activeNotePath.slice(activePrefix.length);
+            onNoteSelect(joinPath(newPath, suffix));
+        }
+        if (!options.skipSuccessToast) {
+            showToast(`Renamed folder to: ${newName}`, 'success');
+        }
+        return newPath;
+    } catch (e) {
+        showToast(`Error: ${e.message}`, 'error');
+        return path;
     }
 }
 

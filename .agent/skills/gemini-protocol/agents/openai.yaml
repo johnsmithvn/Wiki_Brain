@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gemini Protocol"
+  short_description: "Apply GEMINI routing and execution protocol"
+  default_prompt: "Use $gemini-protocol to classify this request and execute with the correct agent and gate checks."

@@ -24,6 +24,7 @@ export const api = {
     getTree: () => request('/notes/tree'),
     listNotes: () => request('/notes/list'),
     getNote: (path) => request(`/notes/${encodeURI(path)}`),
+    getNoteMeta: (path) => request(`/notes/${encodeURI(path)}/meta`),
     createNote: (path, content = '') => request('/notes', {
         method: 'POST',
         body: JSON.stringify({ path, content }),
@@ -41,6 +42,10 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ path }),
     }),
+    renameFolder: (oldPath, newPath) => request('/notes/folder-rename', {
+        method: 'PATCH',
+        body: JSON.stringify({ old_path: oldPath, new_path: newPath }),
+    }),
 
     // Search
     search: (query, limit = 20) => request(`/search?q=${encodeURIComponent(query)}&limit=${limit}`),
@@ -56,6 +61,10 @@ export const api = {
     // Daily
     getDailyToday: () => request('/daily/today'),
     listDailyNotes: () => request('/daily/list'),
+
+    // Templates
+    getTemplates: (folder = 'template') => request(`/templates?folder=${encodeURIComponent(folder)}`),
+    getTemplate: (path) => request(`/templates/${encodeURI(path)}`),
 
     // Assets
     uploadImage: async (file) => {

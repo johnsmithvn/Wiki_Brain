@@ -1,5 +1,6 @@
 import re
 from collections import defaultdict
+from threading import RLock
 
 TAG_INLINE_PATTERN = re.compile(r"(?:^|\s)#([a-zA-Z\u00C0-\u024F\u0400-\u04FF][a-zA-Z0-9_\-/]*)", re.MULTILINE)
 TAG_FRONTMATTER_PATTERN = re.compile(r"^---\s*\n(.*?)\n---", re.DOTALL)
@@ -10,6 +11,7 @@ class TagService:
     def __init__(self) -> None:
         # path -> set of tags
         self._note_tags: dict[str, set[str]] = defaultdict(set)
+        self._lock = RLock()
 
     def extract_tags(self, content: str) -> list[str]:
         tags: set[str] = set()
@@ -58,24 +60,32 @@ class TagService:
 
     def update_tags(self, path: str, content: str) -> list[str]:
         tags = self.extract_tags(content)
-        self._note_tags[path] = set(tags)
+        with self._lock:
+            self._note_tags[path] = set(tags)
         return tags
 
     def remove_note(self, path: str) -> None:
-        self._note_tags.pop(path, None)
+        with self._lock:
+            self._note_tags.pop(path, None)
 
     def get_all_tags(self) -> dict[str, int]:
         counts: dict[str, int] = defaultdict(int)
-        for tags in self._note_tags.values():
-            for tag in tags:
-                counts[tag] += 1
+        with self._lock:
+            for tags in self._note_tags.values():
+                for tag in tags:
+                    counts[tag] += 1
         return dict(sorted(counts.items(), key=lambda x: (-x[1], x[0])))
 
     def get_notes_by_tag(self, tag: str) -> list[str]:
         tag_lower = tag.lower()
-        return sorted(
-            path for path, tags in self._note_tags.items() if tag_lower in tags
-        )
+        with self._lock:
+            return sorted(
+                path for path, tags in self._note_tags.items() if tag_lower in tags
+            )
+
+    def get_tags_for_note(self, path: str) -> list[str]:
+        with self._lock:
+            return sorted(self._note_tags.get(path, set()))
 
 
 tag_service = TagService()

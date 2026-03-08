@@ -4,7 +4,7 @@
 
 import { api } from './api.js';
 import { initSidebar, loadTree, loadTags, setActiveNote, showToast } from './sidebar.js';
-import { initEditor, createEditor, getContent, getWordCount, destroyEditor } from './editor.js';
+import { initEditor, createEditor, getWordCount } from './editor.js';
 import { initPreview, updateNotePaths, renderMarkdown } from './preview.js';
 import { initSearch, openSearch, closeSearch } from './search.js';
 import { initGraph, renderGraph, destroyGraph } from './graph.js';
@@ -13,64 +13,85 @@ import { showConfirm } from './modal.js';
 import { initToolbar } from './toolbar.js';
 import { initQuickCapture, openQuickCapture } from './quick-capture.js';
 import { initSlashMenu } from './slash-menu.js';
+import { openTemplateModal } from './template-modal.js';
+
+const EXTERNAL_SYNC_MS = 4000;
 
 // ---- State ----
 const state = {
-    currentNote: null,       // { path, title, content, ... }
-    currentView: 'empty',    // 'empty' | 'editor' | 'preview' | 'split' | 'graph'
+    currentNote: null,
+    currentView: 'empty',
     allNotePaths: [],
     saveTimeout: null,
     isDirty: false,
+    externalSyncTimer: null,
+    lastKnownModifiedAt: null,
+    lastConflictModifiedAt: null,
 };
 
 // ---- Init ----
 document.addEventListener('DOMContentLoaded', () => {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 
-    initSidebar({ onSelect: openNote, onNew: () => {} });
+    initSidebar({ onSelect: openNote, onNew: openTemplateCreateFlow });
     initEditor({ onChange: handleContentChange });
     initPreview({ onLinkClick: handleWikiLinkClick, notePaths: [] });
     initSearch({ onSelect: openNote });
     initGraph({ onClick: openNote });
     initToolbar();
-    initQuickCapture({ onCreated: (path) => { loadTree(); openNote(path); } });
+    initQuickCapture({ onCreated: async (path) => { await loadTree(); await openNote(path); } });
     initSlashMenu();
 
-    // Daily note button
     document.getElementById('btn-daily-note')?.addEventListener('click', openDailyNote);
 
-    // Load all note paths for link resolution
     loadAllNotePaths();
 
-    // Keyboard shortcuts
     document.addEventListener('keydown', handleGlobalShortcuts);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // View tab clicks
     document.querySelectorAll('.view-tab').forEach(tab => {
         tab.addEventListener('click', () => switchView(tab.dataset.view));
     });
 
-    // Right panel toggle
     document.getElementById('btn-toggle-right-panel').addEventListener('click', toggleRightPanel);
 });
 
 // ---- Note Operations ----
-async function openNote(path) {
+async function openTemplateCreateFlow(parentPath = '') {
+    await openTemplateModal({
+        parentPath,
+        onCreated: async (createdPath) => {
+            await loadTree();
+            await loadTags();
+            await loadAllNotePaths();
+            await openNote(createdPath);
+        },
+    });
+}
+
+async function openNote(path, options = {}) {
+    const { promptCreate = true, preserveView = null, fromExternalReload = false } = options;
+
     if (!path) {
         state.currentNote = null;
+        state.lastKnownModifiedAt = null;
+        state.lastConflictModifiedAt = null;
+        stopExternalSync();
         switchView('empty');
         setActiveNote(null);
         updateBreadcrumb(null);
         return;
     }
 
-    // Fetch the note — only 404 errors should trigger creation dialog
     let note;
     try {
         note = await api.getNote(path);
     } catch (e) {
-        // API error — note not found, offer to create
-        console.warn('Note not found:', path, e.message);
+        if (!promptCreate) {
+            showToast(`Unable to open note: ${e.message}`, 'error');
+            return;
+        }
+
         const name = path.replace('.md', '');
         const shouldCreate = await showConfirm(
             `Note "${name}" doesn't exist yet. Would you like to create it?`,
@@ -82,6 +103,7 @@ async function openNote(path) {
                 await api.createNote(newPath, `# ${name}\n\n`);
                 await loadTree();
                 await loadTags();
+                await loadAllNotePaths();
                 await openNote(newPath);
                 showToast(`Created: ${name}`, 'success');
             } catch (err) {
@@ -91,26 +113,26 @@ async function openNote(path) {
         return;
     }
 
-    // UI updates — errors here should NOT trigger creation dialog
     try {
         state.currentNote = note;
         state.isDirty = false;
+        state.lastKnownModifiedAt = note.modified_at || null;
+        state.lastConflictModifiedAt = null;
         setActiveNote(path);
         updateBreadcrumb(note);
         updateBacklinks(note);
 
-        // Show tabs and switch to editor
         document.getElementById('view-tabs').style.display = '';
-        switchView('editor');
+        switchView(preserveView && preserveView !== 'empty' ? preserveView : 'editor');
 
-        // Update metadata panel
         updateMetadata(note);
-
-        // Track recent notes
         trackRecentNote(path, note.title);
-
-        // Update status bar
         updateStatusBar(note.content);
+        startExternalSync();
+
+        if (fromExternalReload) {
+            showToast('Note reloaded from disk changes.', 'info');
+        }
     } catch (uiErr) {
         console.error('UI error while opening note:', uiErr);
         showToast(`Error displaying note: ${uiErr.message}`, 'error');
@@ -124,17 +146,14 @@ async function handleContentChange(content) {
     state.currentNote.content = content;
     updateStatusBar(content);
 
-    // Update preview if in split view
     if (state.currentView === 'split') {
         const previewEl = document.getElementById('split-preview-content');
         renderMarkdown(content, previewEl);
     }
 
-    // Update TOC
     const headings = generateTOC(content);
     renderTOC(headings);
 
-    // Auto-save with debounce
     clearTimeout(state.saveTimeout);
     document.getElementById('status-save').textContent = 'Unsaved...';
     state.saveTimeout = setTimeout(() => saveCurrentNote(), 1500);
@@ -145,15 +164,14 @@ async function saveCurrentNote() {
 
     try {
         document.getElementById('status-save').textContent = 'Saving...';
-        await api.updateNote(state.currentNote.path, state.currentNote.content);
+        const updated = await api.updateNote(state.currentNote.path, state.currentNote.content);
         state.isDirty = false;
+        state.lastKnownModifiedAt = updated?.modified_at || state.lastKnownModifiedAt;
         document.getElementById('status-save').textContent = 'Saved ✓';
 
-        // Refresh links data
         await loadAllNotePaths();
         await loadTags();
 
-        // Re-fetch backlinks
         try {
             const fresh = await api.getNote(state.currentNote.path);
             updateBacklinks(fresh);
@@ -170,22 +188,72 @@ async function saveCurrentNote() {
     }
 }
 
+// ---- External Sync ----
+function startExternalSync() {
+    if (state.externalSyncTimer || !state.currentNote || document.hidden) return;
+    state.externalSyncTimer = setInterval(checkExternalChange, EXTERNAL_SYNC_MS);
+}
+
+function stopExternalSync() {
+    if (!state.externalSyncTimer) return;
+    clearInterval(state.externalSyncTimer);
+    state.externalSyncTimer = null;
+}
+
+function handleVisibilityChange() {
+    if (document.hidden) {
+        stopExternalSync();
+        return;
+    }
+    startExternalSync();
+    checkExternalChange();
+}
+
+async function checkExternalChange() {
+    if (!state.currentNote || document.hidden) return;
+
+    const currentPath = state.currentNote.path;
+    try {
+        const meta = await api.getNoteMeta(currentPath);
+        if (!meta?.modified_at) return;
+
+        const incomingTs = Date.parse(meta.modified_at);
+        const knownTs = state.lastKnownModifiedAt ? Date.parse(state.lastKnownModifiedAt) : 0;
+        if (!Number.isFinite(incomingTs) || incomingTs <= knownTs) return;
+
+        if (state.isDirty) {
+            if (state.lastConflictModifiedAt !== meta.modified_at) {
+                state.lastConflictModifiedAt = meta.modified_at;
+                showToast('File changed on disk while you have unsaved edits.', 'error');
+            }
+            return;
+        }
+
+        const previousView = state.currentView;
+        await openNote(currentPath, {
+            promptCreate: false,
+            preserveView: previousView,
+            fromExternalReload: true,
+        });
+    } catch (e) {
+        // Ignore transient metadata failures; user-triggered flows keep full errors.
+        console.debug('External sync check skipped:', e.message);
+    }
+}
+
 // ---- View Switching ----
 function switchView(view) {
     state.currentView = view;
 
-    // Hide all views
     document.getElementById('empty-state').classList.add('hidden');
     document.getElementById('editor-view').classList.add('hidden');
     document.getElementById('preview-view').classList.add('hidden');
     document.getElementById('split-view').classList.add('hidden');
     document.getElementById('graph-view').classList.add('hidden');
 
-    // Show/hide toolbar (only for editor + split)
     const toolbar = document.getElementById('editor-toolbar');
     if (toolbar) toolbar.style.display = (view === 'editor' || view === 'split') ? '' : 'none';
 
-    // Update tabs
     document.querySelectorAll('.view-tab').forEach(tab => {
         tab.classList.toggle('active', tab.dataset.view === view);
     });
@@ -226,7 +294,6 @@ function switchView(view) {
             break;
     }
 
-    // Update TOC
     if (view !== 'graph' && view !== 'empty') {
         const headings = generateTOC(content);
         renderTOC(headings);
@@ -235,7 +302,6 @@ function switchView(view) {
 
 // ---- Wiki Link Navigation ----
 function handleWikiLinkClick(target) {
-    // Resolve target to a path
     const targetLower = target.toLowerCase().replace(/\s+/g, '-');
     const resolved = state.allNotePaths.find(p => {
         const stem = p.split('/').pop().replace('.md', '').toLowerCase().replace(/\s+/g, '-');
@@ -245,8 +311,7 @@ function handleWikiLinkClick(target) {
     if (resolved) {
         openNote(resolved);
     } else {
-        // Create new note
-        openNote(target + '.md');
+        openNote(`${target}.md`);
     }
 }
 
@@ -314,38 +379,44 @@ function toggleRightPanel() {
 }
 
 function handleGlobalShortcuts(e) {
-    // Ctrl+K - Search (standard, override Chrome)
-    if (e.ctrlKey && e.key === 'k') {
+    if (e.ctrlKey && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        openTemplateCreateFlow();
+        return;
+    }
+
+    if (e.ctrlKey && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         openSearch();
         return;
     }
-    // Ctrl+Shift+N - Quick capture
+
     if (e.ctrlKey && e.shiftKey && e.key === 'N') {
         e.preventDefault();
         openQuickCapture();
         return;
     }
-    // Alt+N - New note (avoid Ctrl+N = Chrome new window)
-    if (e.altKey && e.key === 'n') {
+
+    // Keep Alt+N as alias for existing users.
+    if (e.altKey && e.key.toLowerCase() === 'n') {
         e.preventDefault();
-        document.getElementById('btn-new-note').click();
+        openTemplateCreateFlow();
         return;
     }
-    // Alt+D - Daily note
-    if (e.altKey && e.key === 'd') {
+
+    if (e.altKey && e.key.toLowerCase() === 'd') {
         e.preventDefault();
         openDailyNote();
         return;
     }
-    // Alt+B - Toggle sidebar (avoid Ctrl+B = Chrome bookmarks)
-    if (e.altKey && e.key === 'b') {
+
+    if (e.altKey && e.key.toLowerCase() === 'b') {
         e.preventDefault();
         document.getElementById('btn-collapse-sidebar').click();
         return;
     }
-    // Alt+E - Toggle editor/preview
-    if (e.altKey && e.key === 'e') {
+
+    if (e.altKey && e.key.toLowerCase() === 'e') {
         e.preventDefault();
         if (state.currentNote) {
             const next = state.currentView === 'editor' ? 'preview' : 'editor';
@@ -353,13 +424,13 @@ function handleGlobalShortcuts(e) {
         }
         return;
     }
-    // Alt+G - Graph view (avoid Ctrl+G = Chrome find next)
-    if (e.altKey && e.key === 'g') {
+
+    if (e.altKey && e.key.toLowerCase() === 'g') {
         e.preventDefault();
         if (state.currentNote) switchView('graph');
         return;
     }
-    // Escape - Close modals
+
     if (e.key === 'Escape') {
         closeSearch();
         document.getElementById('context-menu').classList.add('hidden');

@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.3.0 (2026-03-08)
+
+### Added
+- **Template Notes** with `GET /api/templates` and `GET /api/templates/{path}` sourced from `knowledge/template/`
+- **Template Create Modal** for New Note flow with `Ctrl+N` shortcut and Blank template option
+- **Note Metadata Endpoint** `GET /api/notes/{path}/meta` for lightweight change detection
+- **Filesystem Watcher** (watchdog) for incremental reindex on external create/modify/delete/move changes
+- **External Change Sync** in UI: auto-reload open note when clean, conflict toast when unsaved edits exist
+
+### Changed
+- New Note button now opens the template flow (Alt+N kept as alias)
+- Template files are excluded from note tree indexing/search/graph pipelines
+- `POST /api/notes` now returns `409` if a note path already exists instead of overwriting
+
 ## v0.2.1 (2026-03-08)
 
 ### Fixed

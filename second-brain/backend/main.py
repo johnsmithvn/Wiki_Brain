@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -7,12 +6,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from backend.api import assets, daily, graph, notes, search, tags
+from backend.api import assets, daily, graph, notes, search, tags, templates
 from backend.config import settings
 from backend.services.file_service import file_service
 from backend.services.index_service import index_service
 from backend.services.link_service import link_service
 from backend.services.tag_service import tag_service
+from backend.services.watcher_service import watcher_service
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -86,8 +86,13 @@ async def lifespan(app: FastAPI):
     _create_welcome_note()
     index_service.initialize()
     _build_initial_index()
+    try:
+        watcher_service.start()
+    except Exception as e:
+        logger.warning(f"Watcher failed to start. Running in degraded mode: {e}")
     logger.info(f"Second Brain started — serving from {settings.KNOWLEDGE_DIR}")
     yield
+    watcher_service.stop()
     index_service.close()
     logger.info("Second Brain shut down")
 
@@ -120,6 +125,7 @@ app.include_router(graph.router)
 app.include_router(tags.router)
 app.include_router(daily.router)
 app.include_router(assets.router)
+app.include_router(templates.router)
 
 # Serve uploaded assets
 assets_dir = settings.KNOWLEDGE_DIR / "_assets"

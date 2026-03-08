@@ -1,5 +1,3 @@
-import os
-import stat
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -31,6 +29,17 @@ class FileService:
     def _title_from_path(self, path: Path) -> str:
         return path.stem.replace("-", " ").replace("_", " ")
 
+    def _is_hidden_or_excluded(self, rel_path: str) -> bool:
+        parts = rel_path.replace("\\", "/").split("/")
+        if not parts:
+            return False
+        if settings.is_excluded_from_index(rel_path):
+            return True
+        for part in parts:
+            if part.startswith(".") or part.startswith("_"):
+                return True
+        return False
+
     def _get_metadata(self, path: Path) -> NoteMetadata:
         st = path.stat()
         return NoteMetadata(
@@ -51,7 +60,8 @@ class FileService:
 
         entries = sorted(directory.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
         for entry in entries:
-            if entry.name.startswith(".") or entry.name.startswith("_"):
+            rel = self._relative(entry)
+            if self._is_hidden_or_excluded(rel):
                 continue
             if entry.is_dir():
                 children = self._build_tree(entry)
@@ -72,7 +82,14 @@ class FileService:
     def list_all_notes(self) -> list[NoteMetadata]:
         notes: list[NoteMetadata] = []
         for path in self.root.rglob("*"):
-            if self._is_markdown(path) and not path.name.startswith("."):
+            if not self._is_markdown(path):
+                continue
+            rel = self._relative(path)
+            if self._is_hidden_or_excluded(rel):
+                continue
+            if path.name.startswith("."):
+                continue
+            if path.is_file():
                 notes.append(self._get_metadata(path))
         return notes
 
@@ -106,18 +123,54 @@ class FileService:
 
     async def rename_file(self, old_path: str, new_path: str) -> NoteMetadata:
         src = self._absolute(old_path)
-        if not src.exists():
+        if not src.exists() or not src.is_file() or not self._is_markdown(src):
             raise FileNotFoundError(f"Note not found: {old_path}")
         if not new_path.endswith(".md"):
             new_path += ".md"
         dst = self._absolute(new_path)
+        if src == dst:
+            return self._get_metadata(src)
+        if dst.exists():
+            raise FileExistsError(f"Destination already exists: {new_path}")
         dst.parent.mkdir(parents=True, exist_ok=True)
         src.rename(dst)
         return self._get_metadata(dst)
 
     def create_folder(self, rel_path: str) -> None:
         path = self._absolute(rel_path)
+        if path.exists():
+            raise FileExistsError(f"Folder already exists: {rel_path}")
         path.mkdir(parents=True, exist_ok=True)
+
+    def rename_folder(self, old_path: str, new_path: str) -> str:
+        src = self._absolute(old_path)
+        if src == self.root:
+            raise ValueError("Cannot rename root folder")
+        if not src.exists() or not src.is_dir():
+            raise FileNotFoundError(f"Folder not found: {old_path}")
+
+        dst = self._absolute(new_path)
+        if src == dst:
+            return self._relative(src)
+        if dst.exists():
+            raise FileExistsError(f"Destination already exists: {new_path}")
+
+        try:
+            dst.relative_to(src)
+        except ValueError:
+            pass
+        else:
+            raise ValueError("Cannot move a folder into itself")
+
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        src.rename(dst)
+        return self._relative(dst)
+
+    def exists(self, rel_path: str) -> bool:
+        path = self._absolute(rel_path)
+        if not self._is_markdown(path):
+            path = self._absolute(rel_path + ".md")
+        return path.exists() and path.is_file()
 
     def get_metadata(self, rel_path: str) -> NoteMetadata:
         path = self._absolute(rel_path)

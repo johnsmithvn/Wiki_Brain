@@ -193,6 +193,23 @@
     font-weight: 600;
 }
 
+.sidebar-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.sidebar-section-header .sidebar-section-title {
+    padding-right: var(--sp-2);
+}
+
+.sidebar-section-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-1);
+    padding-right: var(--sp-2);
+}
+
 .tag-list {
     display: flex;
     flex-wrap: wrap;

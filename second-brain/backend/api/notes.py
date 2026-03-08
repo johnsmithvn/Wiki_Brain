@@ -3,8 +3,10 @@ from fastapi import APIRouter, HTTPException
 from backend.models.schemas import (
     FileTreeItem,
     FolderCreate,
+    FolderRename,
     NoteContent,
     NoteCreate,
+    NoteMetaResponse,
     NoteMetadata,
     NoteRename,
     NoteUpdate,
@@ -26,8 +28,19 @@ async def get_file_tree():
 async def list_notes():
     notes = file_service.list_all_notes()
     for note in notes:
-        note.tags = list(tag_service._note_tags.get(note.path, set()))
+        note.tags = tag_service.get_tags_for_note(note.path)
     return notes
+
+
+@router.get("/{path:path}/meta", response_model=NoteMetaResponse)
+async def get_note_meta(path: str):
+    try:
+        metadata = file_service.get_metadata(path)
+        return NoteMetaResponse(path=metadata.path, modified_at=metadata.modified_at, size=metadata.size)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Note not found: {path}")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/{path:path}", response_model=NoteContent)
@@ -54,6 +67,9 @@ async def get_note(path: str):
 @router.post("", response_model=NoteMetadata, status_code=201)
 async def create_note(data: NoteCreate):
     try:
+        requested_path = data.path if data.path.endswith(".md") else f"{data.path}.md"
+        if file_service.exists(requested_path):
+            raise HTTPException(status_code=409, detail=f"Note already exists: {requested_path}")
         metadata = await file_service.write_file(data.path, data.content)
         tags = tag_service.update_tags(metadata.path, data.content)
         metadata.tags = tags
@@ -106,6 +122,8 @@ async def rename_note(path: str, data: NoteRename):
         return metadata
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"Note not found: {path}")
+    except FileExistsError as e:
+        raise HTTPException(status_code=409, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -115,5 +133,20 @@ async def create_folder(data: FolderCreate):
     try:
         file_service.create_folder(data.path)
         return {"path": data.path}
+    except FileExistsError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.patch("/folder-rename")
+async def rename_folder(data: FolderRename):
+    try:
+        new_path = file_service.rename_folder(data.old_path, data.new_path)
+        return {"path": new_path}
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Folder not found: {data.old_path}")
+    except FileExistsError as e:
+        raise HTTPException(status_code=409, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

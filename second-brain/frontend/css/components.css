@@ -33,6 +33,16 @@
     height: 16px;
 }
 
+.icon-btn-sm {
+    width: 24px;
+    height: 24px;
+}
+
+.icon-btn-sm svg {
+    width: 14px;
+    height: 14px;
+}
+
 /* === Buttons === */
 .btn {
     display: inline-flex;
