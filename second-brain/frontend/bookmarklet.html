@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Second Brain — Bookmarklet Setup</title>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, system-ui, sans-serif;
+            background: #111113;
+            color: #e4e4e7;
+            max-width: 640px;
+            margin: 40px auto;
+            padding: 0 24px;
+            line-height: 1.6;
+        }
+        h1 { color: #e5a54b; font-size: 1.5rem; }
+        h2 { color: #a1a1aa; font-size: 1.1rem; margin-top: 2rem; }
+        code {
+            background: #1e1e22;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+        }
+        .bookmarklet-btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #e5a54b;
+            color: #111113;
+            font-weight: 600;
+            font-size: 1rem;
+            border-radius: 8px;
+            text-decoration: none;
+            margin: 16px 0;
+            cursor: grab;
+        }
+        .bookmarklet-btn:hover { background: #d4963e; }
+        .instructions {
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 16px 0;
+        }
+        .instructions li { margin: 8px 0; }
+        .note {
+            font-size: 0.85rem;
+            color: #71717a;
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid #27272a;
+        }
+        #server-url {
+            background: #1e1e22;
+            border: 1px solid #3f3f46;
+            color: #e4e4e7;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            width: 100%;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <h1>📥 Second Brain Bookmarklet</h1>
+    <p>Capture any webpage to your inbox with one click.</p>
+
+    <h2>1. Set Your Server URL</h2>
+    <p>Enter the base URL of your Second Brain server:</p>
+    <input type="text" id="server-url" value="http://localhost:8000" placeholder="http://localhost:8000">
+
+    <h2>2. Drag to Bookmarks Bar</h2>
+    <p>Drag the button below to your browser's bookmarks bar:</p>
+
+    <a class="bookmarklet-btn" id="bookmarklet-link" href="#">📥 Capture to Second Brain</a>
+
+    <h2>3. How to Use</h2>
+    <div class="instructions">
+        <ol>
+            <li>Navigate to any webpage you want to capture</li>
+            <li>Optionally select text on the page</li>
+            <li>Click the <strong>"📥 Capture to Second Brain"</strong> bookmark</li>
+            <li>The page URL and selected text are sent to your inbox</li>
+            <li>A brief confirmation appears in the corner</li>
+        </ol>
+    </div>
+
+    <h2>What Gets Captured</h2>
+    <div class="instructions">
+        <ul>
+            <li><strong>URL</strong> — always included</li>
+            <li><strong>Page title</strong> — used as content header</li>
+            <li><strong>Selected text</strong> — if you select text before clicking, it's included as a quote</li>
+            <li><strong>Source</strong> — tagged as <code>browser</code></li>
+        </ul>
+    </div>
+
+    <div class="note">
+        <strong>Note:</strong> Your Second Brain server must be running and accessible from your browser.
+        If you use Cloudflare Tunnel (Phase 6), update the server URL to your external domain.
+    </div>
+
+    <script>
+        function generateBookmarklet(serverUrl) {
+            // Clean URL
+            const base = serverUrl.replace(/\/+$/, '');
+
+            const code = `
+(function(){
+    var s=window.getSelection?window.getSelection().toString():'';
+    var t=document.title||'';
+    var u=location.href;
+    var c=t+'\\n\\n'+u;
+    if(s)c+='\\n\\n> '+s.replace(/\\n/g,'\\n> ');
+    var x=new XMLHttpRequest();
+    x.open('POST','${base}/api/capture',true);
+    x.setRequestHeader('Content-Type','application/json');
+    x.onload=function(){
+        var d=document.createElement('div');
+        d.style.cssText='position:fixed;top:16px;right:16px;background:#1e1e22;color:#e5a54b;padding:12px 20px;border-radius:8px;font:14px/1.4 Inter,sans-serif;z-index:999999;box-shadow:0 4px 12px rgba(0,0,0,0.5);border:1px solid #e5a54b33';
+        d.textContent=x.status===201?'✅ Captured!':'❌ Failed: '+x.status;
+        document.body.appendChild(d);
+        setTimeout(function(){d.remove()},2500);
+    };
+    x.onerror=function(){alert('Cannot reach Second Brain at ${base}')};
+    x.send(JSON.stringify({content:c,source:'browser',url:u}));
+})();`.replace(/\s+/g, ' ').trim();
+
+            return 'javascript:' + encodeURIComponent(code);
+        }
+
+        function updateBookmarklet() {
+            const url = document.getElementById('server-url').value.trim();
+            const link = document.getElementById('bookmarklet-link');
+            link.href = generateBookmarklet(url);
+        }
+
+        document.getElementById('server-url').addEventListener('input', updateBookmarklet);
+        updateBookmarklet();
+    </script>
+</body>
+</html>

@@ -7,11 +7,11 @@ class Settings(BaseSettings):
     APP_VERSION: str = "0.2.0"
     HOST: str = "127.0.0.1"
     PORT: int = 8000
-    KNOWLEDGE_DIR: Path = Path(__file__).resolve().parent.parent / "knowledge"
+    KNOWLEDGE_DIR: Path = Path(__file__).resolve().parent.parent.parent / "knowledge"
     TEMPLATE_FOLDER: str = "template"
-    DB_PATH: Path = Path(__file__).resolve().parent.parent / "data" / "index.db"
+    DB_PATH: Path = Path(__file__).resolve().parent.parent.parent / "data" / "index.db"
     ALLOWED_EXTENSIONS: set[str] = {".md", ".markdown"}
-    INDEX_EXCLUDED_FOLDERS: set[str] = {"_assets", "template"}
+    INDEX_EXCLUDED_FOLDERS: set[str] = {"_assets", "template", "inbox"}
 
     model_config = {"env_prefix": "SB_"}
 
@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     def ensure_dirs(self) -> None:
         self.KNOWLEDGE_DIR.mkdir(parents=True, exist_ok=True)
         self.TEMPLATE_DIR.mkdir(parents=True, exist_ok=True)
+        (self.KNOWLEDGE_DIR / "inbox").mkdir(parents=True, exist_ok=True)
         self.DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 

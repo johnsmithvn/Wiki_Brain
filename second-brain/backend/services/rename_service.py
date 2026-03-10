@@ -15,9 +15,8 @@ import logging
 import re
 
 from backend.services.file_service import file_service
-from backend.services.index_service import index_service
 from backend.services.link_service import link_service
-from backend.services.tag_service import tag_service
+from backend.services.note_pipeline import note_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -103,11 +102,8 @@ class RenameService:
 
                 if replacements > 0:
                     await file_service.write_file(ref_path, new_content)
-                    # Re-index the updated note
-                    tags = tag_service.update_tags(ref_path, new_content)
-                    link_service.update_links(ref_path, new_content)
-                    metadata = file_service.get_metadata(ref_path)
-                    index_service.index_note(ref_path, metadata.title, new_content, tags)
+                    # Re-index the updated note via pipeline
+                    await note_pipeline.process_note(ref_path, new_content)
                     updated_count += 1
                     logger.info(
                         "Updated %d link(s) in '%s': [[%s]] → [[%s]]",

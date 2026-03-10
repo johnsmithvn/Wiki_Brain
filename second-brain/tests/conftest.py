@@ -58,7 +58,9 @@ def reset_services():
     link_service._backward.clear()
     link_service._all_paths.clear()
     tag_service._note_tags.clear()
-    index_service._connection = None
+    if index_service._conn:
+        index_service._conn.close()
+    index_service._conn = None
 
     yield
 

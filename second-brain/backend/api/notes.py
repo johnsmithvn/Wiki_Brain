@@ -14,9 +14,9 @@ from backend.models.schemas import (
 from backend.services.file_service import file_service
 from backend.services.index_service import index_service
 from backend.services.link_service import link_service
-from backend.services.tag_service import tag_service
-
+from backend.services.note_pipeline import note_pipeline
 from backend.services.rename_service import rename_service
+from backend.services.tag_service import tag_service
 
 router = APIRouter(prefix="/api/notes", tags=["notes"])
 
@@ -73,10 +73,8 @@ async def create_note(data: NoteCreate):
         if file_service.exists(requested_path):
             raise HTTPException(status_code=409, detail=f"Note already exists: {requested_path}")
         metadata = await file_service.write_file(data.path, data.content)
-        tags = tag_service.update_tags(metadata.path, data.content)
+        tags = await note_pipeline.process_note(metadata.path, data.content)
         metadata.tags = tags
-        link_service.update_links(metadata.path, data.content)
-        index_service.index_note(metadata.path, metadata.title, data.content, tags)
         return metadata
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -86,10 +84,8 @@ async def create_note(data: NoteCreate):
 async def update_note(path: str, data: NoteUpdate):
     try:
         metadata = await file_service.write_file(path, data.content)
-        tags = tag_service.update_tags(path, data.content)
+        tags = await note_pipeline.process_note(path, data.content)
         metadata.tags = tags
-        link_service.update_links(path, data.content)
-        index_service.index_note(path, metadata.title, data.content, tags)
         return metadata
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"Note not found: {path}")
@@ -101,9 +97,7 @@ async def update_note(path: str, data: NoteUpdate):
 async def delete_note(path: str):
     try:
         await file_service.delete_file(path)
-        index_service.remove_note(path)
-        link_service.remove_note(path)
-        tag_service.remove_note(path)
+        note_pipeline.remove_note(path)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"Note not found: {path}")
 
@@ -116,14 +110,10 @@ async def rename_note(path: str, data: NoteRename):
         updated_count = await rename_service.propagate_rename(path, data.new_path)
 
         metadata = await file_service.rename_file(path, data.new_path)
-        # Update index references
-        index_service.remove_note(path)
-        link_service.remove_note(path)
-        tag_service.remove_note(path)
-        tags = tag_service.update_tags(metadata.path, content)
+        # Remove old index entries, re-index under new path
+        note_pipeline.remove_note(path)
+        tags = await note_pipeline.process_note(metadata.path, content)
         metadata.tags = tags
-        link_service.update_links(metadata.path, content)
-        index_service.index_note(metadata.path, metadata.title, content, tags)
         return metadata
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"Note not found: {path}")

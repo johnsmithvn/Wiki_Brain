@@ -51,11 +51,11 @@ graph expansion (BFS 1-hop từ mỗi note)
     ↓
 collect neighbor notes (max 5 neighbors)
     ↓
-get top chunks từ neighbor notes
+get top chunks từ neighbor notes (max 2 per note)
     ↓
-merge all chunks
+merge + deduplicate by chunk_id
     ↓
-score = 0.6*vector + 0.3*graph_proximity + 0.1*keyword
+score = VECTOR_WEIGHT*vector + GRAPH_WEIGHT*graph_proximity + KEYWORD_WEIGHT*keyword
     ↓
 select top-5 chunks (≤ 2000 tokens)
     ↓
@@ -147,24 +147,39 @@ async def retrieve_context(query: str) -> RAGContext:
         seed_notes, depth=1, max_neighbors=5
     )
 
-    # Step 4: Get chunks from neighbors
-    neighbor_chunks = vector_service.get_chunks_for_notes(neighbor_notes, limit=5)
+    # Step 4: Get chunks from neighbors (max 2 per note to ensure coverage)
+    neighbor_chunks = vector_service.get_chunks_for_notes(
+        neighbor_notes, max_per_note=2
+    )
 
-    # Step 5: Merge + score
+    # Step 5: Merge + deduplicate by chunk_id
+    seen_chunk_ids = set()
     all_chunks = []
+
+    # Import weights from retrieval config
+    from backend.config.retrieval import VECTOR_WEIGHT, GRAPH_WEIGHT, KEYWORD_WEIGHT
+
     for chunk in vector_results:
+        cid = chunk.payload.get("chunk_id", chunk.id)
+        if cid in seen_chunk_ids:
+            continue
+        seen_chunk_ids.add(cid)
         score = (
-            0.6 * chunk.score +
-            0.3 * graph_proximity_score(chunk.payload["note_path"], seed_notes) +
-            0.1 * keyword_score(query, chunk.payload.get("content", ""))
+            VECTOR_WEIGHT * chunk.score +
+            GRAPH_WEIGHT * graph_proximity_score(chunk.payload["note_path"], seed_notes) +
+            KEYWORD_WEIGHT * keyword_score(query, chunk.payload.get("content", ""))
         )
         all_chunks.append((chunk, score))
 
     for chunk in neighbor_chunks:
+        cid = chunk.payload.get("chunk_id", chunk.id)
+        if cid in seen_chunk_ids:
+            continue
+        seen_chunk_ids.add(cid)
         score = (
-            0.6 * (chunk.score if hasattr(chunk, 'score') else 0.3) +
-            0.3 * 0.7 +  # 1-hop neighbor
-            0.1 * keyword_score(query, chunk.payload.get("content", ""))
+            VECTOR_WEIGHT * (chunk.score if hasattr(chunk, 'score') else 0.3) +
+            GRAPH_WEIGHT * 0.7 +  # 1-hop neighbor
+            KEYWORD_WEIGHT * keyword_score(query, chunk.payload.get("content", ""))
         )
         all_chunks.append((chunk, score))
 
@@ -414,6 +429,10 @@ def get_conversation_context(conversation_id: str) -> str:
 | LLM full response | 1-3 seconds |
 | **Total RAG latency** | **1-3 seconds** |
 
+> **⚠️ Cold-start:** Lần đầu tiên gọi `embedding_service.embed_query()` mất 2-5 giây
+> vì sentence-transformers load model vào RAM/VRAM.
+> **Fix:** Gọi `embed_query("warmup")` trong lifespan startup (xem BACKEND-SERVICE-BOUNDARIES.md §5b).
+
 ---
 
 ## 13. UI: Source Highlighting
@@ -432,12 +451,40 @@ Graph view can highlight notes used in answer.
 
 ---
 
-## 14. File Structure
+## 14. Retrieval Config
+
+> **Sprint 4.5 (T17d):** Extraction of tunable weights into a config file.
+
+```python
+# backend/config/retrieval.py
+
+# --- Retrieval Fusion Weights ---
+# Used in rag_service.py for Graph+Vector hybrid scoring.
+# Also referenced by hybrid_search in DESIGN-chunking-retrieval.md.
+# Tunable after Phase 3 eval loop.
+
+VECTOR_WEIGHT = 0.6    # Semantic similarity (Qdrant cosine)
+GRAPH_WEIGHT  = 0.3    # Graph proximity (wiki-link BFS)
+KEYWORD_WEIGHT = 0.1   # Keyword overlap (FTS5 BM25)
+
+# --- Hybrid Search Weights (no graph) ---
+# Used in search.py for plain hybrid search (Phase 3).
+HYBRID_VECTOR_WEIGHT = 0.7
+HYBRID_KEYWORD_WEIGHT = 0.3
+```
+
+**Lý do:** Hardcoded weights scattered across `rag_service.py`, `search.py`, design docs. Single config → tune once after eval.
+
+---
+
+## 15. File Structure
 
 ```
 backend/
   api/
     chat.py                      # POST /api/chat (SSE)
+  config/
+    retrieval.py                 # Tunable retrieval weights
   services/
     llm_service.py               # Ollama client, streaming
     rag_service.py               # retrieve → context → generate

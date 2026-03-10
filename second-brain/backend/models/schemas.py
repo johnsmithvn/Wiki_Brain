@@ -115,3 +115,52 @@ class TemplateContent(BaseModel):
     title: str
     content: str
     modified_at: datetime | None = None
+
+
+# ── Capture & Inbox (Phase 2) ────────────────────────────────────
+
+
+class CaptureRequest(BaseModel):
+    """Body for POST /api/capture."""
+    content: str
+    source: str = "manual"  # telegram | browser | manual | quick-capture
+    url: str | None = None
+
+
+class CaptureResponse(BaseModel):
+    id: str
+    date: str
+
+
+class InboxEntry(BaseModel):
+    """Single parsed inbox entry."""
+    id: str
+    time: str
+    source: str
+    type: str = "note"  # link | quote | note (UI hint only)
+    url: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    content: str = ""
+
+
+class InboxDateSummary(BaseModel):
+    date: str
+    count: int
+
+
+class ConvertRequest(BaseModel):
+    """Body for POST /api/inbox/{date}/{entry_id}/convert."""
+    title: str
+    folder: str = ""
+    tags: list[str] = Field(default_factory=list)
+    include_scraped: bool = True
+
+
+class ScrapedArticle(BaseModel):
+    title: str
+    content: str
+    author: str | None = None
+    date: str | None = None
+    word_count: int = 0
+    reading_time: int = 0  # minutes
+

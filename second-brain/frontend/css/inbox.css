@@ -1,0 +1,310 @@
+/* ============================================
+   INBOX PANEL
+   ============================================ */
+
+/* === Sidebar Tab System === */
+.sidebar-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border-subtle);
+    flex-shrink: 0;
+    padding: 0 var(--sp-2);
+}
+
+.sidebar-tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-1);
+    padding: var(--sp-2) var(--sp-1);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    color: var(--text-tertiary);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+
+.sidebar-tab:hover {
+    color: var(--text-secondary);
+    background: var(--bg-hover);
+}
+
+.sidebar-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+
+.sidebar-tab svg {
+    width: 14px;
+    height: 14px;
+}
+
+.sidebar-tab .tab-badge {
+    font-size: 10px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: 8px;
+    padding: 0 5px;
+    font-weight: 600;
+    min-width: 16px;
+    text-align: center;
+    line-height: 16px;
+}
+
+/* === Tab Content Panels === */
+.sidebar-tab-content {
+    display: none;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+}
+
+.sidebar-tab-content.active {
+    display: flex;
+}
+
+/* === Inbox Panel === */
+.inbox-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--sp-2) 0;
+}
+
+.inbox-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: var(--sp-8) var(--sp-4);
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    text-align: center;
+}
+
+.inbox-empty-hint {
+    font-size: 10px;
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
+.inbox-summary {
+    font-size: 10px;
+    color: var(--text-muted);
+    padding: var(--sp-1) var(--sp-4) var(--sp-2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* === Date Group === */
+.inbox-date-group {
+    margin-bottom: var(--sp-1);
+}
+
+.inbox-date-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: var(--sp-1) var(--sp-4);
+    cursor: pointer;
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+    transition: background var(--transition-fast);
+}
+
+.inbox-date-header:hover {
+    background: var(--bg-hover);
+}
+
+.inbox-date-toggle {
+    display: flex;
+    transition: transform 0.15s ease;
+}
+
+.inbox-date-toggle.open {
+    transform: rotate(90deg);
+}
+
+.inbox-date-label {
+    font-weight: 500;
+}
+
+.inbox-date-badge {
+    margin-left: auto;
+    font-size: 10px;
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    border-radius: 8px;
+    padding: 0 6px;
+    line-height: 16px;
+}
+
+.inbox-entries {
+    overflow: hidden;
+    transition: max-height 0.2s ease;
+}
+
+.inbox-entries.collapsed {
+    display: none;
+}
+
+.inbox-loading {
+    padding: var(--sp-3) var(--sp-4);
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    text-align: center;
+}
+
+/* === Entry Card === */
+.inbox-entry {
+    margin: var(--sp-1) var(--sp-3);
+    padding: var(--sp-2) var(--sp-3);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.inbox-entry:hover {
+    border-color: var(--border-default);
+    background: var(--bg-hover);
+}
+
+.inbox-entry.selected {
+    border-color: var(--accent-border);
+    background: var(--accent-soft);
+}
+
+.inbox-entry-removing {
+    opacity: 0;
+    transform: translateX(-20px);
+    transition: all 0.2s ease;
+}
+
+.inbox-entry-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    margin-bottom: var(--sp-1);
+}
+
+.inbox-entry-time {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+}
+
+.inbox-entry-source {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-left: auto;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.inbox-entry-content {
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+    line-height: var(--leading-normal);
+    word-break: break-word;
+}
+
+.inbox-entry-url {
+    font-size: 10px;
+    color: var(--info);
+    margin-top: var(--sp-1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.inbox-entry-tags {
+    display: flex;
+    gap: var(--sp-1);
+    flex-wrap: wrap;
+    margin-top: var(--sp-1);
+}
+
+.inbox-tag {
+    font-size: 10px;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 0 4px;
+    border-radius: 3px;
+    line-height: 16px;
+}
+
+/* === Entry Actions === */
+.inbox-entry-actions {
+    display: flex;
+    gap: var(--sp-1);
+    margin-top: var(--sp-2);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.inbox-entry:hover .inbox-entry-actions,
+.inbox-entry.selected .inbox-entry-actions {
+    opacity: 1;
+}
+
+.inbox-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-family: var(--font-sans);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface);
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.inbox-action-btn:hover {
+    border-color: var(--border-default);
+    color: var(--text-primary);
+}
+
+.inbox-action-btn.convert:hover {
+    border-color: var(--accent-border);
+    color: var(--accent);
+    background: var(--accent-soft);
+}
+
+.inbox-action-btn.delete:hover {
+    border-color: rgba(248, 113, 113, 0.3);
+    color: var(--danger);
+    background: rgba(248, 113, 113, 0.08);
+}
+
+.inbox-action-btn.archive:hover {
+    border-color: rgba(96, 165, 250, 0.3);
+    color: var(--info);
+    background: rgba(96, 165, 250, 0.08);
+}
+
+/* === Convert Dialog extras === */
+.inbox-convert-preview {
+    border-top: 1px solid var(--border-subtle);
+    padding-top: var(--sp-3);
+}
+
+.inbox-convert-content {
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+    background: var(--bg-base);
+    padding: var(--sp-2) var(--sp-3);
+    border-radius: var(--radius-sm);
+    max-height: 120px;
+    overflow-y: auto;
+    line-height: var(--leading-normal);
+    white-space: pre-wrap;
+    word-break: break-word;
+}

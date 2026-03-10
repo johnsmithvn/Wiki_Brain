@@ -16,6 +16,7 @@
     <link rel="stylesheet" href="/css/toolbar.css">
     <link rel="stylesheet" href="/css/template-modal.css">
     <link rel="stylesheet" href="/css/graph-filter.css">
+    <link rel="stylesheet" href="/css/inbox.css">
 
     <!-- Marked.js -->
     <script src="https://cdn.jsdelivr.net/npm/marked@15.0.0/marked.min.js"></script>
@@ -54,24 +55,52 @@
                 </button>
             </div>
 
-            <div class="sidebar-section-header">
-                <div class="sidebar-section-title">Files</div>
-                <div class="sidebar-section-actions">
-                    <button class="icon-btn icon-btn-sm" id="btn-sort-toggle" title="Sort: Newest first">
-                        <i data-lucide="arrow-down-wide-narrow"></i>
-                    </button>
-                    <button class="icon-btn icon-btn-sm" id="btn-quick-add-folder" title="Quick add folder">
-                        <i data-lucide="folder-plus"></i>
-                    </button>
-                    <button class="icon-btn icon-btn-sm" id="btn-quick-add-file" title="Quick add file">
-                        <i data-lucide="file-plus"></i>
-                    </button>
-                </div>
+            <!-- Sidebar Tabs -->
+            <div class="sidebar-tabs">
+                <button class="sidebar-tab active" data-tab="files">
+                    <i data-lucide="file-text"></i>
+                    <span>Files</span>
+                </button>
+                <button class="sidebar-tab" data-tab="inbox">
+                    <i data-lucide="inbox"></i>
+                    <span>Inbox</span>
+                    <span class="tab-badge" id="inbox-badge" style="display:none">0</span>
+                </button>
+                <button class="sidebar-tab" data-tab="tags">
+                    <i data-lucide="hash"></i>
+                    <span>Tags</span>
+                </button>
             </div>
-            <div class="file-tree" id="file-tree"></div>
 
-            <div class="sidebar-section-title">Tags</div>
-            <div class="tag-list" id="tag-list"></div>
+            <!-- Files Tab -->
+            <div class="sidebar-tab-content active" data-tab-content="files">
+                <div class="sidebar-section-header">
+                    <div class="sidebar-section-title">Files</div>
+                    <div class="sidebar-section-actions">
+                        <button class="icon-btn icon-btn-sm" id="btn-sort-toggle" title="Sort: Newest first">
+                            <i data-lucide="arrow-down-wide-narrow"></i>
+                        </button>
+                        <button class="icon-btn icon-btn-sm" id="btn-quick-add-folder" title="Quick add folder">
+                            <i data-lucide="folder-plus"></i>
+                        </button>
+                        <button class="icon-btn icon-btn-sm" id="btn-quick-add-file" title="Quick add file">
+                            <i data-lucide="file-plus"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="file-tree" id="file-tree"></div>
+            </div>
+
+            <!-- Inbox Tab -->
+            <div class="sidebar-tab-content" data-tab-content="inbox">
+                <div class="inbox-list" id="inbox-list"></div>
+            </div>
+
+            <!-- Tags Tab -->
+            <div class="sidebar-tab-content" data-tab-content="tags">
+                <div class="sidebar-section-title" style="padding:var(--sp-2) var(--sp-4)">Tags</div>
+                <div class="tag-list" id="tag-list"></div>
+            </div>
         </aside>
 
         <!-- MAIN CONTENT -->
@@ -271,6 +300,7 @@
     <script type="module" src="/js/modal.js"></script>
     <script type="module" src="/js/toolbar.js"></script>
     <script type="module" src="/js/quick-capture.js"></script>
+    <script type="module" src="/js/inbox.js"></script>
     <script type="module" src="/js/slash-menu.js"></script>
     <script type="module" src="/js/template-modal.js"></script>
     <script type="module" src="/js/shortcuts-modal.js"></script>

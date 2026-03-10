@@ -1,5 +1,66 @@
 # Changelog
 
+## v0.6.1 (2026-03-10) — Pre-Phase 3 Documentation Prep
+
+### Updated Design Docs
+- **PLAN**: Added Sprint 4.5 (T17b/T17c/T17d) — 3 prep tasks before Phase 3
+- **DESIGN-chunking-retrieval.md**: Chunk sizes 500/350/100 → 450/300/120, added §5.4 Embedding Debounce (2s window), hybrid search weights now reference config
+- **DESIGN-graph-vector-reasoning.md**: Retrieval weights reference `backend/config/retrieval.py` instead of hardcoded 0.6/0.3/0.1, added §14 Retrieval Config section
+- **DESIGN-ingestion-pipeline.md**: Pipeline flow updated with debounced embed step
+- **ARCHITECTURE.md**: Added “Upcoming Phase 3” section with new services + design decisions
+
+### Rationale
+- Tighter chunk sizes (450 max) improve BGE-M3 embedding quality
+- 2s embedding debounce prevents GPU queue spam on rapid edits
+- Extractable retrieval weights allow post-Phase 3 tuning without code scatter
+
+## v0.6.0 (2026-03-10) — Sprint 4 (Phase 2b: Inbox UI + Capture Sources)
+
+### Added — Sprint 4: Inbox UI & Capture Sources
+- **Inbox UI panel** (`inbox.js` + `inbox.css`): Full sidebar tab with date-grouped entries, expand/collapse, entry selection, keyboard navigation (↑/↓/Enter/A/D)
+- **Sidebar Tabs**: Restructured sidebar with Files | Inbox | Tags tab system, switchable via click or `Alt+I` for inbox
+- **Convert Dialog**: Modal for converting inbox entry to vault note — title, folder, tags fields with content preview
+- **Browser Bookmarklet** (`bookmarklet.html`): Self-hosted setup page with drag-to-bookmarks-bar installation, captures URL + page title + selected text to inbox
+- **Inbox API client**: `api.js` methods for `capture()`, `getInboxDates()`, `getInboxEntries()`, `convertEntry()`, `deleteEntry()`, `archiveEntry()`
+- **Scraper integration**: `capture_service.py` now calls `scraper_service.scrape_url()` for link-type captures, enriching entry content with article text (non-blocking, failure-safe)
+
+### Changed
+- **Quick Capture → Inbox**: `quick-capture.js` now routes through `POST /api/capture` instead of directly appending to daily note. All captures land in inbox for review
+- **Keyboard Shortcuts**: Updated shortcuts modal with inbox-specific shortcuts (Alt+I, Enter, A, D, ↑/↓)
+- `index.html` restructured sidebar DOM to support tab navigation
+
+### Architecture Improvements
+- Scraper service no longer dead code — integrated into capture pipeline
+- Quick Capture aligned with Capture API → unified inbox funnel
+
+## v0.5.0 (2026-03-09) — Sprint 2.5 + Sprint 3 (Phase 2a)
+
+### Added — Sprint 2.5: Refactor
+- **Note Pipeline** (`note_pipeline.py`): Single orchestrator for tags → links → index, eliminates 5 duplicated call sites
+- **Async Watcher Queue**: Watcher events now bridge from watchdog sync thread → `asyncio.Queue` → async worker calling `note_pipeline`
+- **Health Endpoint**: `GET /api/health` returns service readiness (`index`, `links`, `watcher`)
+- **Fix**: `conftest.py` typo `_connection` → `_conn` (was silently failing cleanup)
+
+### Added — Sprint 3: Capture Backend
+- **Capture API**: `POST /api/capture` — zero-friction endpoint for text/URL capture from any source
+- **Capture Service** (`capture_service.py`): Entry creation, type auto-detection (link/quote/note), per-file `asyncio.Lock` for concurrent writes
+- **Inbox Service** (`inbox_service.py`): State-machine parser for inbox markdown, entry CRUD, convert-to-note with slug generation
+- **Inbox API**: `GET /api/inbox` (dates), `GET /api/inbox/{date}` (entries), `POST .../convert`, `DELETE`, `POST .../archive`
+- **Scraper Service** (`scraper_service.py`): `httpx` async fetch + `trafilatura` content extraction via `asyncio.to_thread()`
+- **Schemas**: `CaptureRequest`, `CaptureResponse`, `InboxEntry`, `InboxDateSummary`, `ConvertRequest`, `ScrapedArticle`
+- **Inbox Exclusion**: `inbox` folder added to `INDEX_EXCLUDED_FOLDERS` — inbox entries don't pollute FTS search
+- **Auto-create `inbox/` dir** on startup via `ensure_dirs()`
+
+### Changed
+- `notes.py`, `daily.py`, `rename_service.py` refactored to use `note_pipeline` (removed 15+ duplicated lines)
+- `watcher_service.py` fully rewritten with async queue architecture
+- `requirements.txt` updated with `httpx==0.28.1`, `trafilatura==2.0.0`
+
+### Tests
+- **72 tests** total (43 original + 29 new)
+- New: `test_capture_inbox.py` — 27 tests for capture, inbox parsing, slugify, convert
+- New: `test_note_pipeline.py` — 2 tests for process_note and remove_note
+
 ## v0.4.0 (2026-03-08) — Phase 1 Complete
 
 ### Added

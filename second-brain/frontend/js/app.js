@@ -12,6 +12,7 @@ import { generateTOC, renderTOC } from './toc.js';
 import { showConfirm } from './modal.js';
 import { initToolbar } from './toolbar.js';
 import { initQuickCapture, openQuickCapture } from './quick-capture.js';
+import { initInbox, loadInbox, handleInboxKeyboard } from './inbox.js';
 import { initSlashMenu } from './slash-menu.js';
 import { openTemplateModal } from './template-modal.js';
 import { openShortcutsModal } from './shortcuts-modal.js';
@@ -22,6 +23,7 @@ const EXTERNAL_SYNC_MS = 4000;
 const state = {
     currentNote: null,
     currentView: 'empty',
+    currentSidebarTab: 'files',
     allNotePaths: [],
     saveTimeout: null,
     isDirty: false,
@@ -41,9 +43,21 @@ document.addEventListener('DOMContentLoaded', () => {
     initGraph({ onClick: openNote });
     initToolbar();
     initQuickCapture({ onCreated: async (path) => { await loadTree(); await openNote(path); } });
+    initInbox({
+        onConverted: async (path) => {
+            await loadTree();
+            await loadTags();
+            await loadAllNotePaths();
+            await openNote(path);
+        },
+    });
     initSlashMenu();
 
     document.getElementById('btn-daily-note')?.addEventListener('click', openDailyNote);
+
+    // Sidebar tabs
+    initSidebarTabs();
+    loadInbox(); // pre-load inbox badge count
 
     loadAllNotePaths();
 
@@ -302,6 +316,30 @@ function switchView(view) {
     }
 }
 
+// ---- Sidebar Tabs ----
+function initSidebarTabs() {
+    document.querySelectorAll('.sidebar-tab').forEach(tab => {
+        tab.addEventListener('click', () => switchSidebarTab(tab.dataset.tab));
+    });
+}
+
+function switchSidebarTab(tabName) {
+    state.currentSidebarTab = tabName;
+
+    document.querySelectorAll('.sidebar-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.tab === tabName);
+    });
+    document.querySelectorAll('.sidebar-tab-content').forEach(c => {
+        c.classList.toggle('active', c.dataset.tabContent === tabName);
+    });
+
+    if (tabName === 'inbox') {
+        loadInbox();
+    }
+
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
 // ---- Wiki Link Navigation ----
 function handleWikiLinkClick(target) {
     const targetLower = target.toLowerCase().replace(/\s+/g, '-');
@@ -397,6 +435,21 @@ function handleGlobalShortcuts(e) {
         e.preventDefault();
         openQuickCapture();
         return;
+    }
+
+    // Alt+I to switch to inbox tab
+    if (e.altKey && e.key.toLowerCase() === 'i') {
+        e.preventDefault();
+        switchSidebarTab('inbox');
+        return;
+    }
+
+    // Inbox keyboard shortcuts when inbox tab is active
+    if (state.currentSidebarTab === 'inbox' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        if (handleInboxKeyboard(e)) {
+            e.preventDefault();
+            return;
+        }
     }
 
     if (e.altKey && e.key === '/') {

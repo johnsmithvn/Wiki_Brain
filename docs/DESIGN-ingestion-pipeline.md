@@ -27,7 +27,9 @@ Convert to Note / Archive / Delete
     ↓
 knowledge/{folder}/slug.md (organized note)
     ↓
-note_pipeline() → tags, links, index, (future: embed)
+note_pipeline() → tags, links, index (instant)
+    ↓
+debounced embed (2s) → chunk + embed + Qdrant upsert (Phase 3)
 ```
 
 ---
@@ -307,25 +309,64 @@ async def archive_entry(date: str, entry_id: str):
 
 ### 5.2 Inbox Parser
 
+⚠️ **Không dùng `re.split('\n---\n')`** vì content cũng có thể chứa `---`.
+Dùng **state machine** parse metadata block:
+
 ```python
 def parse_inbox_file(date: str) -> list[InboxEntry]:
-    """Parse markdown inbox file → structured entries."""
+    """Parse markdown inbox file → structured entries.
+
+    State machine:
+      IDLE → saw '---' → METADATA
+      METADATA → saw '---' → CONTENT
+      CONTENT → saw '---' + next line has 'id:' → METADATA (new entry)
+      CONTENT → otherwise → keep accumulating
+    """
     file_path = settings.KNOWLEDGE_DIR / "inbox" / f"{date}.md"
     content = file_path.read_text(encoding="utf-8")
+    lines = content.split("\n")
 
     entries = []
-    # Split by "---" separator blocks
-    blocks = re.split(r'\n---\n', content)
+    state = "IDLE"  # IDLE | METADATA | CONTENT
+    meta_lines = []
+    content_lines = []
 
-    for i in range(1, len(blocks), 2):  # metadata blocks at odd indices
-        metadata = parse_metadata_block(blocks[i])
-        content_block = blocks[i+1] if i+1 < len(blocks) else ""
-        entries.append(InboxEntry(
-            **metadata,
-            content=content_block.strip(),
-        ))
+    for i, line in enumerate(lines):
+        if line.strip() == "---":
+            if state == "IDLE":
+                state = "METADATA"
+                meta_lines = []
+            elif state == "METADATA":
+                # End of metadata block → start content
+                state = "CONTENT"
+                content_lines = []
+            elif state == "CONTENT":
+                # Check if next non-empty line looks like metadata (has 'id:')
+                next_content = peek_next_non_empty(lines, i + 1)
+                if next_content and next_content.startswith("id:"):
+                    # Save current entry, start new metadata
+                    entries.append(build_entry(meta_lines, content_lines))
+                    state = "METADATA"
+                    meta_lines = []
+                else:
+                    # Just a --- inside content, keep it
+                    content_lines.append(line)
+        elif state == "METADATA":
+            meta_lines.append(line)
+        elif state == "CONTENT":
+            content_lines.append(line)
+
+    # Don't forget last entry
+    if state == "CONTENT" and meta_lines:
+        entries.append(build_entry(meta_lines, content_lines))
 
     return entries
+
+def peek_next_non_empty(lines: list[str], start: int) -> str | None:
+    for j in range(start, min(start + 3, len(lines))):
+        if lines[j].strip():
+            return lines[j].strip()
+    return None
 ```
 
 ---
@@ -340,6 +381,8 @@ User clicks "Convert" on inbox entry
 ConvertRequest: { folder, title, tags }
     ↓
 Generate slug: slugify(title)
+    ↓
+Check slug collision → append -1, -2 if exists
     ↓
 Create organized note with schema
     ↓
@@ -399,6 +442,20 @@ def slugify(title: str) -> str:
     text = re.sub(r'[^\w\s-]', '', text).strip().lower()
     text = re.sub(r'[-\s]+', '-', text)
     return text[:80]  # max length
+
+
+def unique_path(folder: Path, slug: str) -> Path:
+    """Return unique file path. Append -1, -2... if slug already exists."""
+    candidate = folder / f"{slug}.md"
+    if not candidate.exists():
+        return candidate
+
+    counter = 1
+    while True:
+        candidate = folder / f"{slug}-{counter}.md"
+        if not candidate.exists():
+            return candidate
+        counter += 1
 ```
 
 ---

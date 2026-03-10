@@ -84,4 +84,28 @@ export const api = {
         }
         return res.json();
     },
+
+    // Capture
+    capture: (content, source = 'manual', url = null) => {
+        const body = { content, source };
+        if (url) body.url = url;
+        return request('/capture', { method: 'POST', body: JSON.stringify(body) });
+    },
+
+    // Inbox
+    getInboxDates: () => request('/inbox'),
+    getInboxEntries: (date) => request(`/inbox/${encodeURIComponent(date)}`),
+    convertEntry: (date, entryId, title, folder = '', tags = []) =>
+        request(`/inbox/${encodeURIComponent(date)}/${encodeURIComponent(entryId)}/convert`, {
+            method: 'POST',
+            body: JSON.stringify({ title, folder, tags }),
+        }),
+    deleteEntry: (date, entryId) =>
+        request(`/inbox/${encodeURIComponent(date)}/${encodeURIComponent(entryId)}`, {
+            method: 'DELETE',
+        }),
+    archiveEntry: (date, entryId) =>
+        request(`/inbox/${encodeURIComponent(date)}/${encodeURIComponent(entryId)}/archive`, {
+            method: 'POST',
+        }),
 };

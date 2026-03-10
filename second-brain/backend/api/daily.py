@@ -4,8 +4,8 @@ from fastapi import APIRouter
 
 from backend.models.schemas import NoteContent, NoteMetadata
 from backend.services.file_service import file_service
-from backend.services.index_service import index_service
 from backend.services.link_service import link_service
+from backend.services.note_pipeline import note_pipeline
 from backend.services.tag_service import tag_service
 
 router = APIRouter(prefix="/api/daily", tags=["daily"])
@@ -40,9 +40,7 @@ async def get_today():
         # Auto-create today's note
         content = DAILY_TEMPLATE.format(title=title, date=filename)
         await file_service.write_file(path, content)
-        tags = tag_service.update_tags(path, content)
-        link_service.update_links(path, content)
-        index_service.index_note(path, title, content, tags)
+        await note_pipeline.process_note(path, content)
 
     metadata = file_service.get_metadata(path)
     return NoteContent(

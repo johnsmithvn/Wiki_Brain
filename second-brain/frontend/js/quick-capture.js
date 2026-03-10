@@ -24,7 +24,7 @@ export function openQuickCapture() {
             <div class="dialog-header">
                 <i data-lucide="zap" style="width:18px;height:18px;color:var(--accent)"></i>
                 <span class="dialog-title">Quick Capture</span>
-                <span style="margin-left:auto;font-size:var(--text-xs);color:var(--text-muted)">Appends to today's daily note</span>
+                <span style="margin-left:auto;font-size:var(--text-xs);color:var(--text-muted)">Saves to Inbox</span>
             </div>
             <div class="dialog-body" style="padding:var(--sp-4)">
                 <textarea id="qc-content" class="qc-textarea" placeholder="Write your idea..." rows="4" autofocus></textarea>
@@ -61,17 +61,14 @@ export function openQuickCapture() {
         if (!content) { cleanup(); return; }
 
         const tags = tagsInput.value.trim();
-        const now = new Date();
-        const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
         const tagLine = tags ? `\n${tags.split(',').map(t => `#${t.trim()}`).join(' ')}` : '';
+        const fullContent = content + tagLine;
 
-        // Append to daily note
+        // Send to capture API → lands in inbox
         try {
-            const daily = await api.getDailyToday();
-            const appendContent = `\n\n## Quick Note (${time})\n\n${content}${tagLine}\n`;
-            await api.updateNote(daily.path, daily.content + appendContent);
-            showToast('Captured!', 'success');
-            if (onNoteCreated) onNoteCreated(daily.path);
+            await api.capture(fullContent, 'quick-capture');
+            showToast('Captured to inbox!', 'success');
+            if (onNoteCreated) onNoteCreated(null);
         } catch (e) {
             showToast(`Error: ${e.message}`, 'error');
         }

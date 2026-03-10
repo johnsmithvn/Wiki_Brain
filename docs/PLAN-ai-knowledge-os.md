@@ -1,8 +1,8 @@
 # PLAN — AI Knowledge OS (Master Plan)
 
 > **Ngày tạo:** 2026-03-08
-> **Cập nhật lần cuối:** 2026-03-08
-> **Trạng thái:** Phase 1 DONE ✅ → Bắt đầu Phase 2
+> **Cập nhật lần cuối:** 2026-03-10
+> **Trạng thái:** Phase 2b DONE (T17 deferred) — Sprint 4.5 Pre-Phase 3 Prep NEXT
 
 ---
 
@@ -138,7 +138,7 @@ Nó đến từ việc hiểu rõ mục tiêu của bạn.
 | `id` | Yes | `YYYYMMDD-HHmmss` (unique per entry) |
 | `time` | Yes | `HH:mm` |
 | `source` | Yes | `telegram` / `browser` / `manual` / `quick-capture` |
-| `type` | No | `link` / `article` / `note` / `idea` / `quote` (auto-detect) |
+| `type` | No | `link` / `quote` / `note` (auto-detect, UI hint only) |
 | `tags` | No | `[tag1, tag2]` (AI gợi ý sau) |
 | `url` | No | URL nếu có |
 
@@ -296,42 +296,68 @@ Content:
 **Thời gian:** 3-4 tuần
 **Design doc:** `docs/DESIGN-ingestion-pipeline.md`
 
-### Sprint 2.5: Pre-Phase Refactor (3-5 ngày)
+### Sprint 2.5: Pre-Phase Refactor (3-5 ngày) — DONE ✅
 
-| Task | Mô tả | INPUT → OUTPUT → VERIFY |
-|------|-------|------------------------|
-| **T09** | Extract `note_pipeline()` | INPUT: 4 nơi duplicated pipeline → OUTPUT: 1 function shared → VERIFY: existing 43 tests still pass |
-| **T10** | Async background task queue | INPUT: sync watcher → OUTPUT: `asyncio.Queue` + background worker in lifespan → VERIFY: watcher triggers async handler |
-| **T11** | Health check endpoint | INPUT: none → OUTPUT: `GET /api/health` → VERIFY: returns 200 |
-| **T12** | Fix conftest `_conn` typo | INPUT: `_connection` → OUTPUT: `_conn` → VERIFY: tests still pass |
-| **T12b** | Viết `BACKEND-SERVICE-BOUNDARIES.md` | INPUT: service list → OUTPUT: dependency graph + async rules + concurrency rules → VERIFY: no circular deps |
+| Task | Mô tả | INPUT → OUTPUT → VERIFY | Status |
+|------|-------|------------------------|--------|
+| **T09** | Extract `note_pipeline()` | INPUT: 4 nơi duplicated pipeline → OUTPUT: 1 `NotePipeline` class shared → VERIFY: 43 tests still pass | ✅ Done |
+| **T10** | Async background task queue | INPUT: sync watcher → OUTPUT: `asyncio.Queue` + background worker in lifespan → VERIFY: watcher triggers async handler | ✅ Done |
+| **T11** | Health check endpoint | INPUT: none → OUTPUT: `GET /api/health` → VERIFY: returns 200 | ✅ Done |
+| **T12** | Fix conftest `_conn` typo | INPUT: `_connection` → OUTPUT: `_conn` → VERIFY: tests still pass | ✅ Done |
+| **T12b** | Viết `BACKEND-SERVICE-BOUNDARIES.md` | INPUT: service list → OUTPUT: dependency graph + async rules + concurrency rules → VERIFY: no circular deps | ✅ Done (prev sprint) |
 
-### Sprint 3: Capture Backend (1 tuần)
+### Sprint 3: Capture Backend (1 tuần) — DONE ✅
 
-| Task | Mô tả | INPUT → OUTPUT → VERIFY |
-|------|-------|------------------------|
-| **T13** | Capture API endpoint | INPUT: `POST /api/capture` body → OUTPUT: entry appended to `inbox/YYYY-MM-DD.md` → VERIFY: curl returns 201, file contains entry |
-| **T14** | Capture service | INPUT: raw text/URL → OUTPUT: parsed entry with id, time, source, auto-detect type + **`asyncio.Lock` per-file write** → VERIFY: unit tests, concurrent write test |
-| **T15** | Inbox folder config | INPUT: config → OUTPUT: `inbox` in `INDEX_EXCLUDED_FOLDERS`, auto-create dir → VERIFY: inbox notes excluded from search |
-| **T16** | URL scraper service | INPUT: URL → OUTPUT: title + article markdown via **`asyncio.to_thread(trafilatura)`** → VERIFY: test with real URL, confirm non-blocking |
+| Task | Mô tả | INPUT → OUTPUT → VERIFY | Status |
+|------|-------|------------------------|--------|
+| **T13** | Capture API endpoint | INPUT: `POST /api/capture` body → OUTPUT: entry appended to `inbox/YYYY-MM-DD.md` → VERIFY: curl returns 201, file contains entry | ✅ Done |
+| **T14** | Capture service | INPUT: raw text/URL → OUTPUT: parsed entry with id, time, source, auto-detect type + **`asyncio.Lock` per-file write** → VERIFY: unit tests, concurrent write test | ✅ Done |
+| **T15** | Inbox folder config | INPUT: config → OUTPUT: `inbox` in `INDEX_EXCLUDED_FOLDERS`, auto-create dir → VERIFY: inbox notes excluded from search | ✅ Done |
+| **T16** | URL scraper service | INPUT: URL → OUTPUT: title + article markdown via **`asyncio.to_thread(trafilatura)`** → VERIFY: test with real URL, confirm non-blocking | ✅ Done |
 
-### Sprint 4: Capture Sources + Inbox UI (1-2 tuần)
+### Sprint 4: Capture Sources + Inbox UI (1-2 tuần) — IN PROGRESS
 
-| Task | Mô tả | INPUT → OUTPUT → VERIFY |
-|------|-------|------------------------|
-| **T17** | Telegram Bot | INPUT: message on Telegram → OUTPUT: capture API called → VERIFY: message appears in inbox |
-| **T18** | Inbox API endpoints | INPUT: `GET /api/inbox`, `GET /api/inbox/{date}` → OUTPUT: parsed entries → VERIFY: API returns entry list |
-| **T19** | Inbox UI panel | INPUT: click Inbox tab → OUTPUT: entries by date, expand/collapse, preview → VERIFY: visual test |
-| **T20** | Inbox → Vault workflow | INPUT: click "Convert" → OUTPUT: organized note created, entry archived → VERIFY: note in vault, entry removed |
-| **T21** | Browser bookmarklet | INPUT: bookmarklet click → OUTPUT: URL + selected text → capture API → VERIFY: entry in inbox |
+| Task | Mô tả | INPUT → OUTPUT → VERIFY | Status |
+|------|-------|------------------------|--------|
+| **T17** | Telegram Bot | INPUT: message on Telegram → OUTPUT: capture API called → VERIFY: message appears in inbox | ⬜ |
+| **T18** | Inbox API endpoints | INPUT: `GET /api/inbox`, `GET /api/inbox/{date}`, `POST .../convert`, `DELETE`, `POST .../archive` → OUTPUT: parsed entries → VERIFY: API returns entry list | ✅ Done |
+| **T19** | Inbox UI panel | INPUT: click Inbox tab → OUTPUT: entries by date, expand/collapse, preview → VERIFY: visual test | ✅ Done |
+| **T20** | Inbox → Vault workflow | INPUT: click "Convert" → OUTPUT: organized note created, entry archived → VERIFY: note in vault, entry removed | ✅ Done |
+| **T21** | Browser bookmarklet | INPUT: bookmarklet click → OUTPUT: URL + selected text → capture API → VERIFY: entry in inbox | ✅ Done |
 
 **Verification checklist:**
-- [ ] `POST /api/capture` với text + URL → inbox entry
+- [x] `POST /api/capture` với text + URL → inbox entry ✅
 - [ ] Telegram message → inbox entry
-- [ ] Inbox UI hiển thị entries, keyboard shortcuts (Enter/A/D)
-- [ ] Convert entry → organized note with schema
-- [ ] Bookmarklet capture thành công
-- [ ] Test coverage cho capture_service, inbox API
+- [x] Inbox UI hiển thị entries, keyboard shortcuts (Enter/A/D) ✅
+- [x] Convert entry → organized note with schema ✅
+- [x] Bookmarklet capture thành công ✅
+- [x] Test coverage cho capture_service, inbox API ✅ (27 + 2 = 29 new tests)
+- [x] Quick Capture routes through `/api/capture` → inbox ✅
+- [x] Scraper service integrated into capture flow ✅
+- [x] Sidebar tabs: Files | Inbox | Tags ✅
+
+---
+
+## 9b. Sprint 4.5: Pre-Phase 3 Prep (5-6 giờ)
+
+> **Mục tiêu:** 3 small fixes trước khi bắt đầu Phase 3 để tránh tech debt lớn.
+> **Nguyên tắc:** Đừng refactor lớn. Chỉ adjust config + design cho embedding pipeline smooth.
+
+| Task | Mô tả | INPUT → OUTPUT → VERIFY | Status |
+|------|-------|------------------------|--------|
+| **T17b** | Fix chunk size config | INPUT: design doc 500/350/100 → OUTPUT: 450/300/120 in `chunker_service.py` config → VERIFY: tighter embedding quality, less noise | ⬜ |
+| **T17c** | Embedding debounce design | INPUT: watcher → embed on every save → OUTPUT: `EMBED_DEBOUNCE_SECONDS = 2` in watcher/embed worker → VERIFY: rapid saves batch into 1 embed call | ⬜ |
+| **T17d** | Retrieval config file | INPUT: hardcoded 0.6/0.3/0.1 weights → OUTPUT: `backend/config/retrieval.py` with `VECTOR_WEIGHT`, `GRAPH_WEIGHT`, `KEYWORD_WEIGHT` → VERIFY: tunable without code changes | ⬜ |
+
+**Rationale:**
+- **T17b:** BGE-M3 embedding quality peaks at 250-400 token range. 450 max reduces noise.
+- **T17c:** Without debounce, rapid edits spam GPU embedding queue. 2-second window batches saves.
+- **T17d:** Retrieval weights will need tuning after Phase 3. Config file avoids scattered hardcoded values.
+
+**Verification checklist:**
+- [ ] Chunk size params updated in design doc + code
+- [ ] Debounce logic documented, ready for Phase 3 implementation
+- [ ] Retrieval weights extractable, referenced in DESIGN docs
 
 ---
 
@@ -345,7 +371,7 @@ Content:
 
 | Task | Mô tả | INPUT → OUTPUT → VERIFY |
 |------|-------|------------------------|
-| **T22** | Chunking service | INPUT: markdown note → OUTPUT: semantic chunks (heading+paragraph, 300-500 tokens, 50 overlap) → VERIFY: unit tests |
+| **T22** | Chunking service | INPUT: markdown note → OUTPUT: semantic chunks (heading+paragraph, **120-450 tokens**, no overlap — paragraph boundary đủ semantic) → VERIFY: unit tests |
 | **T23** | Embedding service | INPUT: chunk list → OUTPUT: vectors via BGE-M3, batch_size=32 → VERIFY: embeddings shape correct |
 | **T24** | Qdrant integration | INPUT: vectors + metadata → OUTPUT: upsert to Qdrant collection → VERIFY: search returns results |
 | **T25** | Incremental indexing | INPUT: file change → OUTPUT: delete old chunks + re-embed note only → VERIFY: modify 1 note, only that note re-embedded |
@@ -355,7 +381,7 @@ Content:
 
 | Task | Mô tả | INPUT → OUTPUT → VERIFY |
 |------|-------|------------------------|
-| **T27** | Hybrid search API | INPUT: `GET /api/search?q=...&mode=hybrid` → OUTPUT: `score = 0.7*vector + 0.3*keyword` → VERIFY: hybrid > FTS-only |
+| **T27** | Hybrid search API | INPUT: `GET /api/search?q=...&mode=hybrid` → OUTPUT: `score = 0.7*norm(vector) + 0.3*norm(keyword)` (min-max normalize trước fusion) → VERIFY: hybrid > FTS-only |
 | **T28** | Related notes API | INPUT: `GET /api/notes/{path}/related` → OUTPUT: top-5 by average chunk similarity → VERIFY: meaningful |
 | **T29** | Related notes UI | INPUT: open note → OUTPUT: "Related Notes" in right panel → VERIFY: click → open |
 | **T30** | Search mode toggle | INPUT: UI toggle → OUTPUT: keyword / semantic / hybrid → VERIFY: different results |
@@ -458,10 +484,16 @@ Content:
 Phase 1 (DONE ✅)
     │
     ▼
-Sprint 2.5: Refactor (T09-T12)
+Sprint 2.5: Refactor (T09-T12) ← DONE ✅
     │
     ▼
-Phase 2: Capture (T13-T21)
+Sprint 3: Capture Backend (T13-T16) ← DONE ✅
+    │
+    ▼
+Sprint 4: Sources + Inbox UI (T17-T21) ← 4/5 DONE (T17 Telegram deferred)
+    │
+    ▼
+Sprint 4.5: Pre-Phase 3 Prep (T17b-T17d) ← chunk config + debounce + retrieval config
     │
     ▼
 Phase 3: Semantic Search (T22-T30)
@@ -481,9 +513,10 @@ Phase 5 (T39-T45)    Phase 6 (T46-T49)
 | Sprint | Phase | Nội dung | Thời gian |
 |--------|-------|----------|-----------|
 | 1-2 | Phase 1 | Solid Knowledge Base | **DONE** ✅ |
-| 2.5 | Refactor | Pipeline + async queue | 3-5 ngày |
-| 3 | Phase 2a | Capture API + Scraper | 1 tuần |
-| 4 | Phase 2b | Telegram + Inbox UI | 1-2 tuần |
+| 2.5 | Refactor | Pipeline + async queue | **DONE** ✅ |
+| 3 | Phase 2a | Capture API + Scraper | **DONE** ✅ |
+| 4 | Phase 2b | Telegram + Inbox UI | **4/5 DONE** (T17 deferred) |
+| 4.5 | Pre-Phase 3 | Chunk config + Debounce + Retrieval config | **5-6 giờ** |
 | 5 | Phase 3a | Chunking + Embedding + Qdrant | 1-2 tuần |
 | 6 | Phase 3b | Hybrid Search + Related Notes | 1 tuần |
 | 7 | Phase 4a | Ollama + Graph+Vector RAG | 1-2 tuần |
@@ -523,6 +556,8 @@ Phase 5 (T39-T45)    Phase 6 (T46-T49)
 | **Concurrent inbox write** | **`asyncio.Lock()` per-file** (không lock global) |
 | **trafilatura block event loop** | **`asyncio.to_thread()` cho CPU-heavy sync calls** |
 | **Circular service deps** | **Xem `BACKEND-SERVICE-BOUNDARIES.md`** |
+| **Watcher re-embed mỗi keystroke** | **Debounce 2s** cho embedding queue (note_pipeline vẫn 500ms) |
+| **Embedding model cold start** | **Warm model on startup** (`embedding_service.load_model()` in lifespan) |
 
 ---
 
@@ -550,8 +585,9 @@ Phase 5 (T39-T45)    Phase 6 (T46-T49)
 ✅ Qdrant vector search (self-hosted)
 ✅ Ollama + Qwen2.5 RAG (local, tiếng Việt)
 ✅ Graph + Vector hybrid reasoning
-✅ Hybrid search: 0.7v + 0.3k weighted fusion
-✅ Chunk: heading + paragraph, 300-500 tokens
+✅ Hybrid search: 0.7v + 0.3k weighted fusion (configurable via retrieval config)
+✅ Chunk: heading + paragraph, 120-450 tokens (tighter range for BGE-M3)
+✅ Embedding debounce: 2s window to batch rapid saves
 ✅ Bỏ reranker, bỏ Prometheus (quá sớm)
 ✅ Auto-link suggestion thay tag suggestion
 ✅ Service boundaries: API → Service → Storage, never reverse

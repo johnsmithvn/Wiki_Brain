@@ -2,7 +2,8 @@ const SHORTCUT_ROWS = [
     { key: 'Ctrl+N', action: 'Create note from template', note: 'Primary shortcut' },
     { key: 'Alt+N', action: 'Create note from template', note: 'Legacy alias' },
     { key: 'Ctrl+K', action: 'Open command palette', note: 'Search notes and commands' },
-    { key: 'Ctrl+Shift+N', action: 'Quick Capture', note: 'Append to daily note fast' },
+    { key: 'Ctrl+Shift+N', action: 'Quick Capture', note: 'Captures to inbox' },
+    { key: 'Alt+I', action: 'Open Inbox tab', note: 'Switch sidebar to inbox' },
     { key: 'Ctrl+S', action: 'Save note', note: 'Works inside editor' },
     { key: 'Alt+/', action: 'Open shortcuts help', note: 'Same as keyboard icon button' },
     { key: 'Alt+D', action: 'Open daily note', note: 'Creates today note if missing' },
@@ -10,8 +11,11 @@ const SHORTCUT_ROWS = [
     { key: 'Alt+G', action: 'Open graph view', note: 'When note is open' },
     { key: 'Alt+B', action: 'Toggle sidebar', note: 'Hide/show left panel' },
     { key: '/', action: 'Open slash menu', note: 'Inside editor' },
-    { key: 'Enter', action: 'Confirm inline rename', note: 'File/folder rename in sidebar' },
-    { key: 'Esc', action: 'Cancel inline rename', note: 'Also closes popup/modal' },
+    { key: 'Enter', action: 'Convert inbox entry', note: 'When inbox entry is selected' },
+    { key: 'A', action: 'Archive inbox entry', note: 'When inbox entry is selected' },
+    { key: 'D', action: 'Delete inbox entry', note: 'When inbox entry is selected' },
+    { key: '↑/↓', action: 'Navigate inbox entries', note: 'Arrow keys in inbox tab' },
+    { key: 'Esc', action: 'Cancel / close', note: 'Closes popup/modal' },
 ];
 
 function closeShortcutModal(overlay, handler) {

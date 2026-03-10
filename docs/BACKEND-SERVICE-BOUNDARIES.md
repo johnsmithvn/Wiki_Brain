@@ -162,8 +162,14 @@ vector_service.init()
 # 5. Embedding (depend on model load)        — Phase 3
 embedding_service.load_model()
 
+# 5b. Warm embedding model — tránh cold-start latency trên query đầu tiên
+embedding_service.embed_query("warmup")
+
 # 6. LLM health check                        — Phase 4
 llm_service.check_ollama()
+
+# 6b. Health endpoint — expose readiness for all services
+# GET /api/health → {index: ok, vector: ok, llm: ok, ...}
 
 # 7. Telegram bot                             — Phase 2
 asyncio.create_task(telegram_bot.start())
@@ -221,7 +227,33 @@ async def embed_worker():
         _embed_queue.task_done()
 ```
 
-### 7.3 Index RLock (existing)
+### 7.3 Watcher Debounce
+
+```python
+# watcher_service phải debounce trước khi gọi note_pipeline
+# Editor ghi nhiều lần mỗi giây → không re-embed mỗi keystroke
+
+import asyncio
+from collections import defaultdict
+
+_pending: dict[str, asyncio.TimerHandle] = {}
+DEBOUNCE_MS = 800  # chờ 800ms sau lần save cuối mới xử lý
+
+def on_file_changed(path: str):
+    if path in _pending:
+        _pending[path].cancel()
+    loop = asyncio.get_event_loop()
+    _pending[path] = loop.call_later(
+        DEBOUNCE_MS / 1000,
+        lambda p=path: asyncio.create_task(_process(p)),
+    )
+
+async def _process(path: str):
+    _pending.pop(path, None)
+    await note_pipeline.process(path)
+```
+
+### 7.4 Index RLock (existing)
 
 ```python
 # index_service already uses threading.RLock

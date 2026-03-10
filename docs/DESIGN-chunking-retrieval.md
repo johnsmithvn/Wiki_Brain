@@ -67,42 +67,40 @@ markdown-it-py parse → tokens:
   ...
 ```
 
-**Step 3 — Split if section > 500 tokens:**
+**Step 3 — Split if section > 450 tokens:**
 ```python
-if section_tokens > MAX_TOKENS:  # 500
+if section_tokens > MAX_TOKENS:  # 450
     split_by_paragraph(section)
-    # each paragraph chunk targets 300-400 tokens
+    # each paragraph chunk targets 250-350 tokens
 ```
 
 **Step 4 — Merge small chunks:**
 ```python
-if chunk_tokens < MIN_TOKENS:  # 100
+if chunk_tokens < MIN_TOKENS:  # 120
     merge_with_previous_chunk()
 ```
 
 ### 2.3 Chunk Size Parameters
 
 ```python
-MAX_TOKENS = 500
-TARGET_TOKENS = 350
-MIN_TOKENS = 100
-OVERLAP_TOKENS = 50
+MAX_TOKENS = 450
+TARGET_TOKENS = 300
+MIN_TOKENS = 120
 ```
 
-**Lý do 300-500 tokens:**
-- Vector quality tốt nhất ở range này
-- Context retrieval đủ meaningful
-- Không quá nhỏ (thiếu context) hay quá lớn (noise)
+**Lý do 120-450 tokens (updated from 100-500):**
+- BGE-M3 embedding quality peaks in 250-400 token range
+- Tighter MAX (450) giảm noise, giữ chunk focused
+- Higher MIN (120) tránh micro-chunks thiếu context
+- Context retrieval fit hơn khi giữ chunks compact
 
 ### 2.4 Overlap
 
-Chunks liên tiếp overlap 50 tokens ở đầu/cuối. Đảm bảo không mất context giữa 2 chunks.
-
-```
-Chunk 1: [tokens 1-350]
-Chunk 2: [tokens 300-650]  ← overlap 50 tokens
-Chunk 3: [tokens 600-950]
-```
+> **Quyết định: KHÔNG dùng token overlap.**
+>
+> Lý do: Chunking theo paragraph/heading boundary đã giữ semantic coherence.
+> Sliding-window overlap mâu thuẫn với paragraph-based splitting.
+> Nếu cần context liên chunk, heading propagation (đính heading vào mỗi chunk) đủ tốt.
 
 ### 2.5 Special Handling
 
@@ -230,6 +228,63 @@ def note_hash(content: str) -> str:
     return hashlib.sha256(content.encode()).hexdigest()[:16]
 ```
 
+### 5.4 Embedding Debounce
+
+> **⚠️ QUAN TRỌNG:** Embedding là GPU task nặng. Rapid saves không nên spam embedding queue.
+
+```python
+EMBED_DEBOUNCE_SECONDS = 2  # Wait 2s after last save before embedding
+```
+
+**Logic:**
+```
+file saved
+    ↓
+note_pipeline() → tags, links, FTS index (instant)
+    ↓
+schedule embed after 2s
+    ↓
+if another save within 2s → reset timer
+    ↓
+after 2s quiet → chunk + embed + upsert
+```
+
+**Implementation idea:**
+```python
+from asyncio import get_event_loop
+
+_embed_timers: dict[str, asyncio.TimerHandle] = {}
+
+async def schedule_embed(note_path: str):
+    """Debounced embedding: only embed after 2s of no further saves."""
+    loop = get_event_loop()
+    
+    # Cancel previous timer for this note
+    if note_path in _embed_timers:
+        _embed_timers[note_path].cancel()
+    
+    # Schedule new timer
+    _embed_timers[note_path] = loop.call_later(
+        EMBED_DEBOUNCE_SECONDS,
+        lambda: asyncio.create_task(_do_embed(note_path))
+    )
+
+async def _do_embed(note_path: str):
+    content = await file_service.read_file(note_path)
+    new_hash = note_hash(content)
+    if new_hash == _hash_cache.get(note_path):
+        return  # Content unchanged, skip
+    chunks = chunk_note(content, note_path)
+    vectors = embed_chunks(chunks)
+    await vector_service.upsert(note_path, chunks, vectors)
+    _hash_cache[note_path] = new_hash
+```
+
+**Lý do 2 giây:**
+- note_pipeline (tags/links/FTS) vẫn chạy ngay (debounce 500ms như hiện tại)
+- Embedding debounce riêng: 2s đủ để user ngừng gõ trước khi GPU process
+- Tránh 10 embeds cho 10 keystrokes liên tiếp
+
 ---
 
 ## 6. Qdrant Schema
@@ -306,7 +361,8 @@ embed query (BGE-M3)
          │                 │
          ▼                 ▼
     Weighted Fusion
-    score = 0.7 * vector_score + 0.3 * keyword_score
+    score = HYBRID_VECTOR_WEIGHT * vector_score + HYBRID_KEYWORD_WEIGHT * keyword_score
+    (weights from backend/config/retrieval.py)
          │
          ▼
     Deduplicate by note_path
@@ -318,6 +374,15 @@ embed query (BGE-M3)
 ### 7.2 Weighted Fusion (đơn giản hơn RRF)
 
 ```python
+def min_max_normalize(scores: list[float]) -> list[float]:
+    """Normalize scores to [0, 1] range."""
+    if not scores:
+        return []
+    lo, hi = min(scores), max(scores)
+    if hi == lo:
+        return [1.0] * len(scores)
+    return [(s - lo) / (hi - lo) for s in scores]
+
 def hybrid_search(query: str, limit: int = 10) -> list[SearchResult]:
     # Vector search
     query_vector = model.encode(query, normalize_embeddings=True)
@@ -330,23 +395,27 @@ def hybrid_search(query: str, limit: int = 10) -> list[SearchResult]:
     # Keyword search
     keyword_results = index_service.search(query, limit=20)
 
-    # Normalize scores to [0, 1]
-    # Fusion
+    # Normalize BOTH score lists to [0, 1] before fusion
+    v_scores = min_max_normalize([r.score for r in vector_results])
+    k_scores = min_max_normalize([r.score for r in keyword_results])
+
+    # Fusion with normalized scores
     combined = {}
-    for r in vector_results:
-        combined[r.chunk_id] = 0.7 * r.score
-    for r in keyword_results:
+    for r, norm_score in zip(vector_results, v_scores):
+        combined[r.chunk_id] = VECTOR_WEIGHT * norm_score  # from retrieval config
+    for r, norm_score in zip(keyword_results, k_scores):
         chunk_id = find_chunk_for_note(r.path)
         if chunk_id in combined:
-            combined[chunk_id] += 0.3 * r.score
+            combined[chunk_id] += KEYWORD_WEIGHT * norm_score  # from retrieval config
         else:
-            combined[chunk_id] = 0.3 * r.score
+            combined[chunk_id] = KEYWORD_WEIGHT * norm_score
 
     # Sort and return top-N
     return sorted(combined.items(), key=lambda x: -x[1])[:limit]
 ```
 
 > **Per chot.md:** Weighted sum đơn giản hơn RRF. Đủ tốt cho solo project.
+> **⚠️ QUAN TRỌNG:** Phải min-max normalize trước fusion vì vector score (cosine: 0-1) và FTS score (BM25: unbounded) không cùng scale.
 
 ### 7.3 Search Modes
 

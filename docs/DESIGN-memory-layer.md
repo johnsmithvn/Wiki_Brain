@@ -183,12 +183,15 @@ knowledge/memory/threads/
 # backend/services/thread_service.py
 
 import json
+import threading
 from pathlib import Path
+from collections import defaultdict
 
 class ThreadService:
     def __init__(self, memory_dir: Path):
         self.threads_dir = memory_dir / "threads"
         self.threads_dir.mkdir(parents=True, exist_ok=True)
+        self._locks: dict[str, threading.Lock] = defaultdict(threading.Lock)
 
     def create_thread(self, topic: str) -> ResearchThread:
         thread = ResearchThread(
@@ -220,16 +223,17 @@ class ThreadService:
         return sorted(threads, key=lambda t: t.updated_at, reverse=True)
 
     def add_message(self, thread_id: str, role: str, content: str):
-        thread = self.get_thread(thread_id)
-        if not thread:
-            return
-        thread.messages.append({
-            "role": role,
-            "content": content,
-            "timestamp": datetime.now().isoformat(),
-        })
-        thread.updated_at = datetime.now().isoformat()
-        self._save(thread)
+        with self._locks[thread_id]:  # per-thread lock
+            thread = self.get_thread(thread_id)
+            if not thread:
+                return
+            thread.messages.append({
+                "role": role,
+                "content": content,
+                "timestamp": datetime.now().isoformat(),
+            })
+            thread.updated_at = datetime.now().isoformat()
+            self._save(thread)
 
     def add_explored_note(self, thread_id: str, note_path: str):
         thread = self.get_thread(thread_id)
@@ -246,11 +250,15 @@ class ThreadService:
             self._save(thread)
 
     def _save(self, thread: ResearchThread):
+        """Atomic write: temp file + rename to prevent corruption.
+        Per-thread lock prevents concurrent overwrite."""
         path = self.threads_dir / f"{thread.id}.json"
-        path.write_text(
+        tmp_path = path.with_suffix(".tmp")
+        tmp_path.write_text(
             json.dumps(asdict(thread), ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
+        tmp_path.replace(path)  # atomic on same filesystem
 ```
 
 ### 3.5 Thread API

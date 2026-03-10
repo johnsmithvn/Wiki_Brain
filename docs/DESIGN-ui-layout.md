@@ -94,7 +94,7 @@ Mỗi panel có toggle button + keyboard shortcut:
 │ │ [Convert][Archive]││
 │ └───────────────────┘│
 │ ┌───────────────────┐│
-│ │ 💡 18:30          ││
+│ │ � 18:30          ││
 │ │ "Động lực không   ││
 │ │  đến từ..."       ││
 │ │ [Convert][Archive]││

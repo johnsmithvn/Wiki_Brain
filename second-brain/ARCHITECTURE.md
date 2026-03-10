@@ -21,6 +21,9 @@ This layer handles incoming HTTP requests, input validation, and HTTP responses.
 - `graph.py`: Endpoints for generating D3.js compatible node/link graph data.
 - `tags.py`: Endpoints for listing all tags and finding notes by tag.
 - `assets.py`: Image upload handling with unique filename generation.
+- `capture.py`: Zero-friction capture endpoint (`POST /api/capture`) — accepts text/URL from any source (browser, quick-capture, Telegram).
+- `inbox.py`: Inbox CRUD — list dates, get entries, convert to note, delete, archive.
+- `health.py`: Service readiness health check.
 
 ### 2. Service Layer (`backend/services/`)
 This layer contains the core business logic, decoupled from HTTP concerns.
@@ -28,6 +31,13 @@ This layer contains the core business logic, decoupled from HTTP concerns.
 - `index_service.py`: In-memory SQLite FTS5 database for fast full-text search capability. Rebuilds index on startup and keeps it synchronized.
 - `link_service.py`: Parses and resolves `[[wiki-links]]` to maintain bidirectional connectivity between notes.
 - `tag_service.py`: Extracts `#tags` and YAML frontmatter tags from markdown content.
+- `note_pipeline.py`: Orchestrates tags → links → index update in a single call, eliminating duplication.
+- `capture_service.py`: Entry creation from raw text/URL, type auto-detection, per-file `asyncio.Lock` for concurrent writes, scraper integration for URL enrichment.
+- `inbox_service.py`: State-machine parser for inbox markdown files, entry CRUD, convert-to-note with slug generation.
+- `scraper_service.py`: Async URL fetch via `httpx` + article extraction via `trafilatura` (CPU-heavy, runs in `asyncio.to_thread()`).
+- `watcher_service.py`: Filesystem watcher (watchdog) bridging sync events to async queue for incremental reindexing.
+- `template_service.py`: Template discovery and loading from `knowledge/template/`.
+- `rename_service.py`: Rename propagation — updates all `[[wiki-links]]` across vault when a note is renamed.
 
 ### 3. Application Entrypoint (`backend/main.py`)
 - Initializes global services during `lifespan` startup.
@@ -42,14 +52,16 @@ The frontend uses Vanilla Javascript modules (`ES6`) to keep the application lig
 - `app.js` is the entry controller. It coordinates all other modules, maintains global state (`state.currentNote`, `state.activeTasks`), handles global keyboard shortcuts, and dispatches UI updates.
 
 ### 2. UI Modules
-- `sidebar.js`: Handles file tree rendering, drag-and-drop file movement, and tag explorer. 
+- `sidebar.js`: Handles file tree rendering, drag-and-drop file movement, and tag explorer.
+- `inbox.js`: Inbox panel — browse captured entries by date, expand/collapse, convert to note, archive, delete with keyboard shortcuts.
 - `editor.js`: The central text editor overlaying basic markdown features with toolbar and image pasting integration.
 - `preview.js`: Renders markdown to HTML using `marked.js`, resolving internal wiki-links and inline tags.
 - `graph.js`: Renders the D3.js force-directed graph.
 - `search.js` & `slash-menu.js`: Implements the command palette and editor slash commands logic.
-- `quick-capture.js`: A specialized modal for appending items to the daily note.
+- `quick-capture.js`: A specialized modal for capturing ideas to the inbox via `POST /api/capture`.
 - `toolbar.js`: Logic for bold, italic, code-blocks and heading manipulation in the editor.
 - `toc.js`: Dynamically generates the table of contents from markdown headings.
+- `shortcuts-modal.js`: Keyboard shortcuts reference popup.
 
 ### 3. API Communication (`frontend/js/api.js`)
 - Centralized `fetch` wrapper handling API requests, URI encoding, and HTTP error normalization.
@@ -67,3 +79,19 @@ The frontend uses Vanilla Javascript modules (`ES6`) to keep the application lig
 ## Security Considerations
 - **Path Traversal Protection**: `file_service.py` enforces that all manipulated paths fall strictly under the `KNOWLEDGE_DIR` root using Python's `Path.relative_to()`. Hidden folders (e.g., `_assets/`) are excluded from file tree views.
 - **Cache-Control**: FastAPI sets `Cache-Control: no-cache` middleware during development to prevent aggressive browser caching masking recent JS updates.
+
+## Upcoming: Phase 3 — Semantic Search
+
+The next phase adds semantic search capabilities. Key new components (not yet implemented):
+
+| File | Purpose |
+|------|---------|
+| `backend/services/chunker_service.py` | Markdown → semantic chunks (heading/paragraph, 120-450 tokens) |
+| `backend/services/embedding_service.py` | Chunks → vectors via BGE-M3 (batch, GPU) |
+| `backend/services/vector_service.py` | Qdrant CRUD (upsert, search, delete) |
+| `backend/config/retrieval.py` | Tunable retrieval fusion weights (vector/graph/keyword) |
+
+Key design decisions documented in `docs/DESIGN-chunking-retrieval.md`:
+- Embedding debounce (2s) to avoid GPU spam on rapid saves
+- Retrieval weights configurable, not hardcoded
+- Chunk sizes: MAX=450, TARGET=300, MIN=120 tokens
