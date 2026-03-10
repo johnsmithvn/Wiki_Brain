@@ -14,6 +14,7 @@ Usage:
     note_pipeline.remove_note(rel_path)
 """
 
+import asyncio
 import logging
 
 from backend.services.file_service import file_service
@@ -40,7 +41,10 @@ class NotePipeline:
         tags = tag_service.update_tags(rel_path, content)
         link_service.update_links(rel_path, content)
         metadata = file_service.get_metadata(rel_path)
-        index_service.index_note(rel_path, metadata.title, content, tags)
+        # Wrap blocking SQLite call to avoid stalling the event loop
+        await asyncio.to_thread(
+            index_service.index_note, rel_path, metadata.title, content, tags
+        )
         logger.debug("Pipeline processed: %s (%d tags)", rel_path, len(tags))
         return tags
 

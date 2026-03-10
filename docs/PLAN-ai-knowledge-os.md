@@ -2,7 +2,7 @@
 
 > **Ngày tạo:** 2026-03-08
 > **Cập nhật lần cuối:** 2026-03-10
-> **Trạng thái:** Phase 2b DONE (T17 deferred) — Sprint 4.5 Pre-Phase 3 Prep NEXT
+> **Trạng thái:** Phase 2b DONE (T17 deferred) — Sprint 4.5 Prep + Sprint 4.6 Hardening DONE — Phase 3 NEXT
 
 ---
 
@@ -135,7 +135,7 @@ Nó đến từ việc hiểu rõ mục tiêu của bạn.
 
 | Field | Required | Mô tả |
 |-------|----------|-------|
-| `id` | Yes | `YYYYMMDD-HHmmss` (unique per entry) |
+| `id` | Yes | `YYYYMMDD-HHmmss-mmm` (unique per entry, ms suffix) |
 | `time` | Yes | `HH:mm` |
 | `source` | Yes | `telegram` / `browser` / `manual` / `quick-capture` |
 | `type` | No | `link` / `quote` / `note` (auto-detect, UI hint only) |
@@ -199,7 +199,7 @@ Content:
 | Markdown | marked.js |
 | Watcher | watchdog 6.0.0 |
 | File I/O | aiofiles |
-| Tests | pytest (43 tests) |
+| Tests | pytest (72 tests) |
 
 ### Phase 2 thêm
 | Component | Technology |
@@ -345,9 +345,9 @@ Content:
 
 | Task | Mô tả | INPUT → OUTPUT → VERIFY | Status |
 |------|-------|------------------------|--------|
-| **T17b** | Fix chunk size config | INPUT: design doc 500/350/100 → OUTPUT: 450/300/120 in `chunker_service.py` config → VERIFY: tighter embedding quality, less noise | ⬜ |
-| **T17c** | Embedding debounce design | INPUT: watcher → embed on every save → OUTPUT: `EMBED_DEBOUNCE_SECONDS = 2` in watcher/embed worker → VERIFY: rapid saves batch into 1 embed call | ⬜ |
-| **T17d** | Retrieval config file | INPUT: hardcoded 0.6/0.3/0.1 weights → OUTPUT: `backend/config/retrieval.py` with `VECTOR_WEIGHT`, `GRAPH_WEIGHT`, `KEYWORD_WEIGHT` → VERIFY: tunable without code changes | ⬜ |
+| **T17b** | Fix chunk size config | INPUT: design doc 500/350/100 → OUTPUT: 450/300/120 in `chunker_service.py` config → VERIFY: tighter embedding quality, less noise | ✅ Done (design docs updated) |
+| **T17c** | Embedding debounce design | INPUT: watcher → embed on every save → OUTPUT: `EMBED_DEBOUNCE_SECONDS = 2` in watcher/embed worker → VERIFY: rapid saves batch into 1 embed call | ✅ Done (design docs + retrieval.py) |
+| **T17d** | Retrieval config file | INPUT: hardcoded 0.6/0.3/0.1 weights → OUTPUT: `backend/config/retrieval.py` with `VECTOR_WEIGHT`, `GRAPH_WEIGHT`, `KEYWORD_WEIGHT` → VERIFY: tunable without code changes | ✅ Done |
 
 **Rationale:**
 - **T17b:** BGE-M3 embedding quality peaks at 250-400 token range. 450 max reduces noise.
@@ -355,9 +355,48 @@ Content:
 - **T17d:** Retrieval weights will need tuning after Phase 3. Config file avoids scattered hardcoded values.
 
 **Verification checklist:**
-- [ ] Chunk size params updated in design doc + code
-- [ ] Debounce logic documented, ready for Phase 3 implementation
-- [ ] Retrieval weights extractable, referenced in DESIGN docs
+- [x] Chunk size params updated in design doc + code
+- [x] Debounce logic documented, ready for Phase 3 implementation
+- [x] Retrieval weights extractable, referenced in DESIGN docs
+
+---
+
+## 9c. Sprint 4.6: Code Hardening (DONE ✅)
+
+> **Mục tiêu:** Fix all HIGH/MEDIUM issues from full code review before Phase 3.
+> **Scope:** 11 fixes across backend (7) + frontend (4). No new features.
+> **72/72 tests pass after all fixes.**
+
+### Backend Fixes
+
+| # | Issue | Severity | Fix |
+|---|-------|----------|-----|
+| H1 | **Capture ID collision** (same-second captures get same ID) | HIGH | Added millisecond suffix: `YYYYMMDD-HHmmss-mmm` |
+| H2 | **Path traversal in inbox convert** (`folder` param unchecked) | HIGH/SECURITY | Added `.resolve()` + `.relative_to()` guard in `inbox_service.convert_entry_to_note()` |
+| H3 | **Blocking sync I/O in watcher** (`read_text()` blocks event loop) | HIGH | Wrapped with `asyncio.to_thread()` in `watcher_service._worker()` |
+| H4 | **Deprecated `asyncio.get_event_loop()`** | MEDIUM | Changed to `asyncio.get_running_loop()` in `watcher_service.start()` |
+| H5 | **SQLite RLock blocking async** (all DB calls block event loop) | MEDIUM | Wrapped `index_note()` and `search()` with `asyncio.to_thread()` at call sites (`note_pipeline.py`, `search.py`) |
+| H6 | **Scraper dead code** (unused xmltei extraction + broken metadata API) | MEDIUM | Removed xmltei call, fixed to `trafilatura.extract_metadata()` |
+| H7 | **Unbounded `_recent` dict in watcher** (memory leak) | LOW | Added pruning when len > 500 |
+
+### Frontend Fixes
+
+| # | Issue | Severity | Fix |
+|---|-------|----------|-----|
+| H8 | **Inbox keyboard shortcuts fire in inputs** (type 'a'→archive, 'd'→delete) | HIGH | Added `activeElement` guard (INPUT/TEXTAREA/contentEditable check) in `app.js` |
+| H9 | **11 undefined CSS variables** (`--border`, `--radius`, `--bg-secondary`) | HIGH | Mapped to actual design tokens (`--border-default`, `--radius-sm`, `--bg-hover`) in `graph-filter.css` |
+| H10 | **Modal keydown handler leak** (confirm/alert handlers not cleaned on overlay click) | MEDIUM | Moved `removeEventListener` into shared `cleanup()` function in `modal.js` |
+| H11 | **No delete confirmation for inbox entries** | MEDIUM | Added `showConfirm()` dialog before delete in `inbox.js` |
+
+### Known Issues Deferred to Phase 3+
+
+| Issue | Severity | Reason |
+|-------|----------|--------|
+| `escapeHtml()` duplicated in 8 files | LOW | Refactor when adding shared utils module |
+| No ARIA roles / focus trap in modals | LOW | Accessibility sprint after Phase 3 |
+| No upload file size limit | LOW | Add when implementing asset upload |
+| No responsive layout | LOW | Desktop-first, mobile via Phase 6 tunnel |
+| `include_scraped` dead param in schema | LOW | Clean up when extending scraper features |
 
 ---
 
@@ -493,10 +532,13 @@ Sprint 3: Capture Backend (T13-T16) ← DONE ✅
 Sprint 4: Sources + Inbox UI (T17-T21) ← 4/5 DONE (T17 Telegram deferred)
     │
     ▼
-Sprint 4.5: Pre-Phase 3 Prep (T17b-T17d) ← chunk config + debounce + retrieval config
+Sprint 4.5: Pre-Phase 3 Prep (T17b-T17d) ← DONE ✅
     │
     ▼
-Phase 3: Semantic Search (T22-T30)
+Sprint 4.6: Code Hardening (H1-H11) ← DONE ✅ (11 fixes, 72 tests)
+    │
+    ▼
+Phase 3: Semantic Search (T22-T30) ← NEXT
     │
     ▼
 Phase 4: RAG Chat (T31-T38)
@@ -516,7 +558,8 @@ Phase 5 (T39-T45)    Phase 6 (T46-T49)
 | 2.5 | Refactor | Pipeline + async queue | **DONE** ✅ |
 | 3 | Phase 2a | Capture API + Scraper | **DONE** ✅ |
 | 4 | Phase 2b | Telegram + Inbox UI | **4/5 DONE** (T17 deferred) |
-| 4.5 | Pre-Phase 3 | Chunk config + Debounce + Retrieval config | **5-6 giờ** |
+| 4.5 | Pre-Phase 3 | Chunk config + Debounce + Retrieval config | **DONE** ✅ |
+| 4.6 | Hardening | 11 bug/security fixes from code review | **DONE** ✅ |
 | 5 | Phase 3a | Chunking + Embedding + Qdrant | 1-2 tuần |
 | 6 | Phase 3b | Hybrid Search + Related Notes | 1 tuần |
 | 7 | Phase 4a | Ollama + Graph+Vector RAG | 1-2 tuần |

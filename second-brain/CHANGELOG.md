@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.6.2 (2026-03-10) — Sprint 4.6: Code Hardening
+
+### Security
+- **Path traversal fix**: `inbox_service.convert_entry_to_note()` now validates `folder` param with `.resolve()` + `.relative_to()` guard
+
+### Bug Fixes — Backend
+- **Capture ID collision**: Added millisecond suffix (`YYYYMMDD-HHmmss-mmm`) to prevent same-second duplicates
+- **Blocking I/O in watcher**: `read_text()` wrapped with `asyncio.to_thread()` to avoid stalling event loop
+- **Deprecated API**: `asyncio.get_event_loop()` → `asyncio.get_running_loop()` in watcher startup
+- **SQLite blocking async**: `index_note()` and `search()` now wrapped with `asyncio.to_thread()` at call sites
+- **Scraper dead code**: Removed unused `xmltei` extraction, fixed metadata API to `trafilatura.extract_metadata()`
+- **Unbounded `_recent` dict**: Watcher debounce map now pruned when exceeding 500 entries
+
+### Bug Fixes — Frontend
+- **Inbox keyboard guard**: Shortcuts (a/d/Enter) no longer fire when user is typing in inputs/textareas
+- **CSS undefined variables**: Fixed 11 broken references in `graph-filter.css` (`--border` → `--border-default`, `--radius` → `--radius-sm`, `--bg-secondary` → `--bg-hover`)
+- **Modal keydown leak**: Confirm/alert handlers now properly cleaned up on overlay click via shared `cleanup()`
+- **Delete confirmation**: Inbox delete now shows `showConfirm()` danger dialog before proceeding
+
+### Tests
+- 72/72 tests passing (updated ID length assertion for new millisecond format)
+
 ## v0.6.1 (2026-03-10) — Pre-Phase 3 Documentation Prep
 
 ### Updated Design Docs

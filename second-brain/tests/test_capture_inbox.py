@@ -46,7 +46,7 @@ class TestCreateEntry:
         assert entry.source == "telegram"
         assert entry.content == "hello world"
         assert entry.type == "note"
-        assert len(entry.id) == 15  # YYYYMMDD-HHMMSS
+        assert len(entry.id) == 19  # YYYYMMDD-HHMMSS-mmm (with milliseconds)
 
     def test_with_url(self):
         req = CaptureRequest(content="good article", source="browser", url="https://x.com")

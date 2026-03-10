@@ -162,7 +162,12 @@ class InboxService:
         slug = slugify(title)
         rel_folder = folder.strip("/") if folder else ""
         if rel_folder:
-            note_dir = settings.KNOWLEDGE_DIR / rel_folder
+            note_dir = (settings.KNOWLEDGE_DIR / rel_folder).resolve()
+            # Validate against path traversal
+            try:
+                note_dir.relative_to(settings.KNOWLEDGE_DIR.resolve())
+            except ValueError:
+                raise ValueError("Path traversal detected in folder parameter")
         else:
             note_dir = settings.KNOWLEDGE_DIR
 

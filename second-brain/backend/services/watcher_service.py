@@ -50,6 +50,11 @@ class _VaultEventHandler(FileSystemEventHandler):
     def _should_process(self, key: str) -> bool:
         now = time.monotonic()
         with self._lock:
+            # Prune stale entries every 100 checks to prevent unbounded growth
+            if len(self._recent) > 500:
+                cutoff = now - self._debounce_s * 10
+                self._recent = {k: v for k, v in self._recent.items() if v > cutoff}
+
             last = self._recent.get(key)
             if last is not None and now - last < self._debounce_s:
                 return False
@@ -109,7 +114,10 @@ class WatcherService:
             try:
                 if action == "upsert":
                     try:
-                        content = file_service._absolute(rel_path).read_text(encoding="utf-8")
+                        abs_path = file_service._absolute(rel_path)
+                        content = await asyncio.to_thread(
+                            abs_path.read_text, encoding="utf-8"
+                        )
                         await note_pipeline.process_note(rel_path, content)
                         logger.info("Watcher reindexed note: %s", rel_path)
                     except FileNotFoundError:
@@ -127,7 +135,7 @@ class WatcherService:
         if self._observer and self._observer.is_alive():
             return
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         self._queue = asyncio.Queue()
         self._worker_task = loop.create_task(self._worker())
 

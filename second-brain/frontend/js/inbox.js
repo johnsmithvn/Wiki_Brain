@@ -4,6 +4,7 @@
 
 import { api } from './api.js';
 import { showToast } from './sidebar.js';
+import { showConfirm } from './modal.js';
 
 let onConvertComplete = null;
 let inboxData = [];       // [{ date, count }]
@@ -287,6 +288,12 @@ async function handleArchive(date, entryId, entryEl) {
 }
 
 async function handleDelete(date, entryId, entryEl) {
+    const confirmed = await showConfirm(
+        'This entry will be permanently deleted.',
+        { title: 'Delete entry?', confirmText: 'Delete', danger: true }
+    );
+    if (!confirmed) return;
+
     try {
         await api.deleteEntry(date, entryId);
         entryEl?.classList.add('inbox-entry-removing');

@@ -68,19 +68,12 @@ def _extract_article(html: str, url: str) -> ScrapedArticle | None:
     if not result:
         return None
 
-    metadata = trafilatura.extract(
-        html,
-        include_comments=False,
-        output_format="xmltei",
-        url=url,
-    )
-
-    # Extract title from metadata or fallback
+    # Extract title/author/date from metadata
     title = ""
     author = None
     date = None
     try:
-        meta = trafilatura.metadata.extract_metadata(html, url)
+        meta = trafilatura.extract_metadata(html, default_url=url)
         if meta:
             title = meta.title or ""
             author = meta.author

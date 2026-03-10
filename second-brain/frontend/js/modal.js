@@ -129,6 +129,7 @@ export function showConfirm(message, opts = {}) {
         okBtn.focus();
 
         const cleanup = (value) => {
+            document.removeEventListener('keydown', keyHandler);
             overlay.style.animation = 'fadeOut 100ms ease forwards';
             overlay.querySelector('.dialog-modal').style.animation = 'slideUp 100ms ease forwards';
             setTimeout(() => overlay.remove(), 100);
@@ -142,10 +143,11 @@ export function showConfirm(message, opts = {}) {
             if (e.target === overlay) cleanup(false);
         });
 
-        document.addEventListener('keydown', function handler(e) {
-            if (e.key === 'Enter') { e.preventDefault(); cleanup(true); document.removeEventListener('keydown', handler); }
-            if (e.key === 'Escape') { e.preventDefault(); cleanup(false); document.removeEventListener('keydown', handler); }
-        });
+        function keyHandler(e) {
+            if (e.key === 'Enter') { e.preventDefault(); cleanup(true); }
+            if (e.key === 'Escape') { e.preventDefault(); cleanup(false); }
+        }
+        document.addEventListener('keydown', keyHandler);
     });
 }
 
@@ -191,6 +193,7 @@ export function showAlert(message, opts = {}) {
         okBtn.focus();
 
         const cleanup = () => {
+            document.removeEventListener('keydown', keyHandler);
             overlay.style.animation = 'fadeOut 100ms ease forwards';
             overlay.querySelector('.dialog-modal').style.animation = 'slideUp 100ms ease forwards';
             setTimeout(() => overlay.remove(), 100);
@@ -199,9 +202,10 @@ export function showAlert(message, opts = {}) {
 
         okBtn.addEventListener('click', cleanup);
         overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(); });
-        document.addEventListener('keydown', function handler(e) {
-            if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); cleanup(); document.removeEventListener('keydown', handler); }
-        });
+        function keyHandler(e) {
+            if (e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); cleanup(); }
+        }
+        document.addEventListener('keydown', keyHandler);
     });
 }
 

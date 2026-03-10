@@ -19,7 +19,8 @@ from backend.models.schemas import CaptureRequest, InboxEntry
 
 logger = logging.getLogger(__name__)
 
-# Per-file locks — prevent concurrent writes corrupting inbox markdown
+# Per-file locks — prevent concurrent writes corrupting inbox markdown.
+# Bounded by number of unique date files (practical max ~365/year).
 _inbox_locks: dict[str, Lock] = defaultdict(Lock)
 
 URL_PATTERN = re.compile(r"https?://\S+")
@@ -39,7 +40,8 @@ def detect_type(content: str, url: str | None) -> str:
 def create_entry(request: CaptureRequest) -> InboxEntry:
     """Create a structured inbox entry from a capture request."""
     now = datetime.now()
-    entry_id = now.strftime("%Y%m%d-%H%M%S")
+    # Include microseconds to avoid ID collisions for same-second captures
+    entry_id = now.strftime("%Y%m%d-%H%M%S") + f"-{now.microsecond // 1000:03d}"
     entry_type = detect_type(request.content, request.url)
 
     return InboxEntry(

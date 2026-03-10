@@ -446,7 +446,11 @@ function handleGlobalShortcuts(e) {
 
     // Inbox keyboard shortcuts when inbox tab is active
     if (state.currentSidebarTab === 'inbox' && !e.ctrlKey && !e.altKey && !e.metaKey) {
-        if (handleInboxKeyboard(e)) {
+        // Don't intercept when user is typing in an input/textarea/contenteditable
+        const tag = document.activeElement?.tagName;
+        const isEditable = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
+            || document.activeElement?.isContentEditable;
+        if (!isEditable && handleInboxKeyboard(e)) {
             e.preventDefault();
             return;
         }
