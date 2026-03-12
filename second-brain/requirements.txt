@@ -8,3 +8,7 @@ python-multipart==0.0.20
 # Phase 2: Capture & Scraping
 httpx==0.28.1
 trafilatura==2.0.0
+# Phase 3: Semantic Search
+markdown-it-py==4.0.0
+sentence-transformers==5.3.0
+qdrant-client==1.17.0

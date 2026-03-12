@@ -96,6 +96,7 @@ async function openNote(path, options = {}) {
         switchView('empty');
         setActiveNote(null);
         updateBreadcrumb(null);
+        clearRelatedNotes();
         return;
     }
 
@@ -137,6 +138,7 @@ async function openNote(path, options = {}) {
         setActiveNote(path);
         updateBreadcrumb(note);
         updateBacklinks(note);
+        updateRelatedNotes(path);
 
         document.getElementById('view-tabs').style.display = '';
         switchView(preserveView && preserveView !== 'empty' ? preserveView : 'editor');
@@ -405,6 +407,43 @@ function updateBacklinks(note) {
     container.querySelectorAll('.backlink-item').forEach(el => {
         el.addEventListener('click', () => openNote(el.dataset.path));
     });
+}
+
+async function updateRelatedNotes(path) {
+    const container = document.getElementById('related-notes-list');
+    if (!container) return;
+
+    container.innerHTML = '<div style="font-size:var(--text-xs);color:var(--text-muted)">Loading...</div>';
+
+    try {
+        const data = await api.getRelatedNotes(path);
+        if (!data.related || !data.related.length) {
+            container.innerHTML = '<div style="font-size:var(--text-xs);color:var(--text-muted)">No related notes found</div>';
+            return;
+        }
+
+        container.innerHTML = data.related.map(r => {
+            const name = r.title || r.path.split('/').pop().replace('.md', '');
+            const score = Math.round(r.score * 100);
+            return `<div class="related-note-item" data-path="${escapeHtml(r.path)}">
+                <span class="related-note-name">${escapeHtml(name)}</span>
+                <span class="related-note-score">${score}%</span>
+            </div>`;
+        }).join('');
+
+        container.querySelectorAll('.related-note-item').forEach(el => {
+            el.addEventListener('click', () => openNote(el.dataset.path));
+        });
+    } catch {
+        container.innerHTML = '<div style="font-size:var(--text-xs);color:var(--text-muted)">Unavailable</div>';
+    }
+}
+
+function clearRelatedNotes() {
+    const container = document.getElementById('related-notes-list');
+    if (container) {
+        container.innerHTML = '<div style="font-size:var(--text-xs);color:var(--text-muted)">Open a note to see related</div>';
+    }
 }
 
 function updateStatusBar(content) {

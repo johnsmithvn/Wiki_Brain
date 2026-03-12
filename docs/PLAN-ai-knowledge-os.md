@@ -1,8 +1,8 @@
 # PLAN — AI Knowledge OS (Master Plan)
 
 > **Ngày tạo:** 2026-03-08
-> **Cập nhật lần cuối:** 2026-03-10
-> **Trạng thái:** Phase 2b DONE (T17 deferred) — Sprint 4.5 Prep + Sprint 4.6 Hardening DONE — Phase 3 NEXT
+> **Cập nhật lần cuối:** 2026-03-12
+> **Trạng thái:** Phase 3 COMPLETE ✅ — All Sprint 5 + Sprint 6 tasks done
 
 ---
 
@@ -408,30 +408,30 @@ Content:
 
 ### Sprint 5: Embedding Pipeline (1-2 tuần)
 
-| Task | Mô tả | INPUT → OUTPUT → VERIFY |
-|------|-------|------------------------|
-| **T22** | Chunking service | INPUT: markdown note → OUTPUT: semantic chunks (heading+paragraph, **120-450 tokens**, no overlap — paragraph boundary đủ semantic) → VERIFY: unit tests |
-| **T23** | Embedding service | INPUT: chunk list → OUTPUT: vectors via BGE-M3, batch_size=32 → VERIFY: embeddings shape correct |
-| **T24** | Qdrant integration | INPUT: vectors + metadata → OUTPUT: upsert to Qdrant collection → VERIFY: search returns results |
-| **T25** | Incremental indexing | INPUT: file change → OUTPUT: delete old chunks + re-embed note only → VERIFY: modify 1 note, only that note re-embedded |
-| **T26** | Document summary embedding | INPUT: note → OUTPUT: title+summary embedded separately → VERIFY: doc-level search works |
+| Task | Mô tả | INPUT → OUTPUT → VERIFY | Status |
+|------|-------|------------------------|--------|
+| **T22** | Chunking service | INPUT: markdown note → OUTPUT: semantic chunks (heading+paragraph, **120-450 tokens**, no overlap — paragraph boundary đủ semantic) → VERIFY: unit tests | ✅ Done |
+| **T23** | Embedding service | INPUT: chunk list → OUTPUT: vectors via BGE-M3, batch_size=32 → VERIFY: embeddings shape correct | ✅ Done |
+| **T24** | Qdrant integration | INPUT: vectors + metadata → OUTPUT: upsert to Qdrant collection → VERIFY: search returns results | ✅ Done |
+| **T25** | Incremental indexing | INPUT: file change → OUTPUT: delete old chunks + re-embed note only → VERIFY: modify 1 note, only that note re-embedded | ✅ Done |
+| **T26** | Document summary embedding | INPUT: note → OUTPUT: title+summary embedded separately → VERIFY: doc-level search works | ✅ Done |
 
 ### Sprint 6: Hybrid Search + Related Notes (1 tuần)
 
-| Task | Mô tả | INPUT → OUTPUT → VERIFY |
-|------|-------|------------------------|
-| **T27** | Hybrid search API | INPUT: `GET /api/search?q=...&mode=hybrid` → OUTPUT: `score = 0.7*norm(vector) + 0.3*norm(keyword)` (min-max normalize trước fusion) → VERIFY: hybrid > FTS-only |
-| **T28** | Related notes API | INPUT: `GET /api/notes/{path}/related` → OUTPUT: top-5 by average chunk similarity → VERIFY: meaningful |
-| **T29** | Related notes UI | INPUT: open note → OUTPUT: "Related Notes" in right panel → VERIFY: click → open |
-| **T30** | Search mode toggle | INPUT: UI toggle → OUTPUT: keyword / semantic / hybrid → VERIFY: different results |
+| Task | Mô tả | INPUT → OUTPUT → VERIFY | Status |
+|------|-------|------------------------|--------|
+| **T27** | Hybrid search API | INPUT: `GET /api/search?q=...&mode=hybrid` → OUTPUT: `score = 0.7*norm(vector) + 0.3*norm(keyword)` (min-max normalize trước fusion) → VERIFY: hybrid > FTS-only | ✅ Done |
+| **T28** | Related notes API | INPUT: `GET /api/notes/{path}/related` → OUTPUT: top-5 by average chunk similarity → VERIFY: meaningful | ✅ Done |
+| **T29** | Related notes UI | INPUT: open note → OUTPUT: "Related Notes" in right panel → VERIFY: click → open | ✅ Done |
+| **T30** | Search mode toggle | INPUT: UI toggle → OUTPUT: keyword / semantic / hybrid → VERIFY: different results | ✅ Done |
 
 **Verification checklist:**
-- [ ] Toàn bộ vault chunked + embedded + Qdrant
-- [ ] Semantic search trả kết quả đúng ngữ nghĩa
-- [ ] Hybrid search tốt hơn single-mode
-- [ ] Related notes gợi ý đúng topic
-- [ ] Incremental indexing chỉ re-embed changed notes
-- [ ] Doc summary embedding helps recall
+- [x] Toàn bộ vault chunked + embedded + Qdrant
+- [x] Semantic search trả kết quả đúng ngữ nghĩa
+- [x] Hybrid search tốt hơn single-mode
+- [x] Related notes gợi ý đúng topic
+- [x] Incremental indexing chỉ re-embed changed notes
+- [x] Doc summary embedding helps recall
 
 ---
 
@@ -538,7 +538,7 @@ Sprint 4.5: Pre-Phase 3 Prep (T17b-T17d) ← DONE ✅
 Sprint 4.6: Code Hardening (H1-H11) ← DONE ✅ (11 fixes, 72 tests)
     │
     ▼
-Phase 3: Semantic Search (T22-T30) ← NEXT
+Phase 3: Semantic Search (T22-T30) ← DONE ✅
     │
     ▼
 Phase 4: RAG Chat (T31-T38)
@@ -560,8 +560,8 @@ Phase 5 (T39-T45)    Phase 6 (T46-T49)
 | 4 | Phase 2b | Telegram + Inbox UI | **4/5 DONE** (T17 deferred) |
 | 4.5 | Pre-Phase 3 | Chunk config + Debounce + Retrieval config | **DONE** ✅ |
 | 4.6 | Hardening | 11 bug/security fixes from code review | **DONE** ✅ |
-| 5 | Phase 3a | Chunking + Embedding + Qdrant | 1-2 tuần |
-| 6 | Phase 3b | Hybrid Search + Related Notes | 1 tuần |
+| 5 | Phase 3a | Chunking + Embedding + Qdrant | **DONE** ✅ |
+| 6 | Phase 3b | Hybrid Search + Related Notes | **DONE** ✅ |
 | 7 | Phase 4a | Ollama + Graph+Vector RAG | 1-2 tuần |
 | 8 | Phase 4b | Summary + Auto-link + Modes | 1 tuần |
 | 9 | Phase 5a | Research Threads + Memory | 1-2 tuần |

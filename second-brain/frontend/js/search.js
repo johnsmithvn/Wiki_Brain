@@ -6,6 +6,7 @@ import { api } from './api.js';
 
 let onResultSelect = null;
 let debounceTimer = null;
+let searchMode = 'hybrid';
 
 export function initSearch({ onSelect }) {
     onResultSelect = onSelect;
@@ -16,6 +17,20 @@ export function initSearch({ onSelect }) {
 
     // Open search
     document.getElementById('btn-open-search').addEventListener('click', openSearch);
+
+    // Search mode toggle
+    document.querySelectorAll('.search-mode-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            searchMode = btn.dataset.mode;
+            document.querySelectorAll('.search-mode-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            // Re-run search with new mode if there's a query
+            const q = input.value.trim();
+            if (q && !q.startsWith('/') && !q.startsWith('#')) {
+                performSearch(q);
+            }
+        });
+    });
 
     // Input handler with debounce
     input.addEventListener('input', () => {
@@ -144,7 +159,7 @@ async function performSearch(query) {
     }
 
     try {
-        const data = await api.search(trimmed);
+        const data = await api.search(trimmed, 20, searchMode);
         if (!data.results.length) {
             results.innerHTML = `
                 <div style="padding:var(--sp-4);text-align:center;color:var(--text-muted);font-size:var(--text-sm)">

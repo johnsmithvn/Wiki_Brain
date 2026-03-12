@@ -86,6 +86,24 @@ async def lifespan(app: FastAPI):
     _create_welcome_note()
     index_service.initialize()
     _build_initial_index()
+
+    # Phase 3: Vector search initialization (graceful — app works without Qdrant)
+    try:
+        from backend.services.embedding_service import embedding_service
+        from backend.services.vector_service import vector_service
+
+        embedding_service.load_model()
+        vector_service.init(dim=embedding_service.dim)
+
+        if vector_service.available:
+            # Warm embedding model to avoid cold-start latency
+            await embedding_service.embed_query("warmup")
+            logger.info("Phase 3 services ready: embedding + Qdrant")
+        else:
+            logger.info("Qdrant unavailable — running without vector search")
+    except Exception as e:
+        logger.warning("Phase 3 init skipped: %s", e)
+
     try:
         watcher_service.start()
     except Exception as e:

@@ -38,6 +38,9 @@ This layer contains the core business logic, decoupled from HTTP concerns.
 - `watcher_service.py`: Filesystem watcher (watchdog) bridging sync events to async queue for incremental reindexing.
 - `template_service.py`: Template discovery and loading from `knowledge/template/`.
 - `rename_service.py`: Rename propagation — updates all `[[wiki-links]]` across vault when a note is renamed.
+- `chunker_service.py`: Markdown → semantic chunks using markdown-it-py AST. Pure function, no side effects.
+- `embedding_service.py`: Singleton BGE-M3 embedding model. Lazy loading, async batch embedding via `asyncio.to_thread()`.
+- `vector_service.py`: Qdrant client wrapper. Collection lifecycle, per-note upsert/delete, vector search with filters.
 
 ### 3. Application Entrypoint (`backend/main.py`)
 - Initializes global services during `lifespan` startup.
@@ -73,25 +76,42 @@ The frontend uses Vanilla Javascript modules (`ES6`) to keep the application lig
 3. `api.updateNote()` encodes the path and sends `PUT /api/notes/{path}`.
 4. FastAPI validates request in `notes.py` and calls `file_service.write_file()`.
 5. `file_service` writes markdown to disk.
-6. `notes.py` updates `tag_service`, `link_service`, and `index_service` with the new content.
-7. Frontend updates status bar with successful save.
+6. `notes.py` calls `note_pipeline.process_note()` which updates `tag_service`, `link_service`, `index_service`, and schedules embedding.
+7. After 2s debounce, `note_pipeline` chunks the note → embeds via BGE-M3 → upserts to Qdrant (if available).
+8. Frontend updates status bar with successful save.
 
 ## Security Considerations
 - **Path Traversal Protection**: `file_service.py` enforces that all manipulated paths fall strictly under the `KNOWLEDGE_DIR` root using Python's `Path.relative_to()`. Hidden folders (e.g., `_assets/`) are excluded from file tree views.
 - **Cache-Control**: FastAPI sets `Cache-Control: no-cache` middleware during development to prevent aggressive browser caching masking recent JS updates.
 
-## Upcoming: Phase 3 — Semantic Search
+## Upcoming: Phase 3 — Semantic Search (Backend Complete ✅)
 
-The next phase adds semantic search capabilities. Key new components (not yet implemented):
+Phase 3 adds semantic search capabilities. Backend services implemented, frontend UI pending.
+
+### New Services
 
 | File | Purpose |
 |------|---------|
-| `backend/services/chunker_service.py` | Markdown → semantic chunks (heading/paragraph, 120-450 tokens) |
-| `backend/services/embedding_service.py` | Chunks → vectors via BGE-M3 (batch, GPU) |
-| `backend/services/vector_service.py` | Qdrant CRUD (upsert, search, delete) |
-| `backend/config/retrieval.py` | Tunable retrieval fusion weights (vector/graph/keyword) |
+| `backend/services/chunker_service.py` | Markdown → semantic chunks (heading/paragraph, 120-450 tokens). Pure function via markdown-it-py AST. |
+| `backend/services/embedding_service.py` | Chunks → vectors via BGE-M3 (1024-dim, multilingual). Lazy model loading, async batch processing. |
+| `backend/services/vector_service.py` | Qdrant CRUD (upsert per note, search, delete). Content hash for dedup. Doc summary support. |
+| `backend/config/retrieval.py` | Tunable retrieval fusion weights (vector/graph/keyword), chunk sizes, debounce config. |
 
-Key design decisions documented in `docs/DESIGN-chunking-retrieval.md`:
+### Updated Services
+
+| File | Changes |
+|------|---------|
+| `backend/services/note_pipeline.py` | Now orchestrates: tags → links → FTS index → **embedding** (debounced 2s). Chunks + embeds after FTS update. |
+| `backend/api/search.py` | 3 search modes: `keyword` (FTS only), `semantic` (vector only), `hybrid` (weighted fusion 0.7v + 0.3k). Falls back to keyword if Qdrant unavailable. |
+| `backend/api/notes.py` | New `GET /api/notes/{path}/related` endpoint — returns top-N semantically similar notes. |
+| `backend/api/health.py` | Now reports `vector` service status and collection info. |
+| `backend/main.py` | Lifespan startup initializes embedding model + Qdrant collection (graceful degradation on failure). |
+
+### Key Design Decisions
+
+Documented in `docs/DESIGN-chunking-retrieval.md`:
 - Embedding debounce (2s) to avoid GPU spam on rapid saves
-- Retrieval weights configurable, not hardcoded
+- Retrieval weights configurable via `backend/config/retrieval.py`, not hardcoded
 - Chunk sizes: MAX=450, TARGET=300, MIN=120 tokens
+- Hybrid search: min-max normalization before weighted score fusion
+- Graceful degradation: all Phase 3 features no-op if Qdrant/model unavailable

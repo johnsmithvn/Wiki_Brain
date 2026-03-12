@@ -1,5 +1,44 @@
 # Changelog
 
+## v0.7.0 (2026-03-12) — Phase 3: Semantic Search (Backend)
+
+### Added — Sprint 5: Embedding Pipeline
+- **Chunker service** (`chunker_service.py`): Markdown AST → semantic chunks via markdown-it-py. Heading-aware sectioning, paragraph-boundary splits (120-450 tokens), frontmatter stripping, tag/link extraction per chunk.
+- **Embedding service** (`embedding_service.py`): BGE-M3 model (1024-dim, multilingual VN+EN). Lazy model loading, async batch embedding via `asyncio.to_thread()`, configurable batch size.
+- **Vector service** (`vector_service.py`): Qdrant CRUD — collection lifecycle, per-note upsert/delete with content hash dedup, vector search with type/tag filters, doc summary embedding support, `get_collection_info()` for health reporting.
+- **Document summary embedding**: Each note gets a doc-level summary point (type=`doc_summary`) alongside chunk-level points for better recall.
+- **Incremental indexing**: `note_pipeline.py` schedules embedding with 2s debounce (`asyncio.TimerHandle`). Only changed notes re-embedded (content hash check). Note deletion removes vectors from Qdrant.
+
+### Added — Sprint 6: Hybrid Search + Related Notes (Backend)
+- **Hybrid search API**: `GET /api/search?q=...&mode=keyword|semantic|hybrid`. Hybrid mode: vector top-20 + FTS top-20 → min-max normalize → weighted fusion (0.7v + 0.3k) → dedup by note_path. Falls back to keyword if Qdrant unavailable.
+- **Related notes API**: `GET /api/notes/{path}/related?limit=5`. Embeds up to 3 chunks from source note → vector search → score aggregation by note_path → returns top-N semantically similar notes.
+- **Health endpoint v2**: `GET /api/health` now reports `vector` service status and Qdrant collection info (point count, segments).
+
+### Added — Sprint 6: Frontend UI
+- **Related Notes panel**: New right-panel section showing top-5 semantically similar notes with similarity score. Click to navigate. Loads asynchronously on note open. Gracefully handles unavailability.
+- **Search mode toggle**: Three-button toggle (Hybrid / Semantic / Keyword) in search modal header. Re-runs current query on mode switch. Defaults to Hybrid. Persists during session.
+
+### Changed
+- **`note_pipeline.py`**: Major rewrite — now orchestrates tags → links → FTS → embedding (debounced). Added `__init__` with timer tracking, lazy imports for Phase 3 services.
+- **`main.py`**: Lifespan startup now initializes embedding model + Qdrant collection with graceful degradation on failure.
+- **`search.py`**: Rewritten with 3 search modes, score normalization, vector fallback.
+- **`notes.py`**: Added `Query` import and `get_related_notes()` endpoint.
+- **`health.py`**: Added vector service status check and collection info.
+- **`requirements.txt`**: Added `markdown-it-py==4.0.0`, `sentence-transformers==5.3.0`, `qdrant-client==1.17.0`.
+- **`index.html`**: Added Related Notes section in right panel, search mode toggle buttons in search modal.
+- **`api.js`**: Added `getRelatedNotes()` method, `search()` now accepts `mode` parameter.
+- **`app.js`**: Added `updateRelatedNotes()`/`clearRelatedNotes()` called on note open/close.
+- **`search.js`**: Added search mode state + toggle handler, passes mode to API.
+- **`components.css`**: Added styles for `.search-mode-toggle`, `.search-mode-btn`, `.related-note-item`.
+
+### Tests
+- **23 new chunker tests** (`test_chunker_service.py`): Token counting, title extraction, frontmatter handling, section splitting, chunk merging, code blocks, blockquotes, embedding input formatting.
+- **95 total tests passing** (72 original + 23 new).
+
+### Architecture
+- **Graceful degradation**: All Phase 3 features no-op if Qdrant or embedding model unavailable. Core workflow (keyword search, FTS, wiki-links) always works.
+- **Service boundary**: Chunker/Embedding/Vector services follow existing pattern — API → Service → Storage, never reverse.
+
 ## v0.6.2 (2026-03-10) — Sprint 4.6: Code Hardening
 
 ### Security

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from backend.models.schemas import (
     FileTreeItem,
@@ -145,3 +145,55 @@ async def rename_folder(data: FolderRename):
         raise HTTPException(status_code=409, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/{path:path}/related")
+async def get_related_notes(path: str, limit: int = Query(5, ge=1, le=20)):
+    """Get semantically related notes using vector similarity.
+
+    Returns top-N notes most similar to the given note based on
+    average chunk embedding similarity. Falls back to empty list
+    if Qdrant is unavailable.
+    """
+    from collections import defaultdict
+
+    from backend.services.embedding_service import embedding_service
+    from backend.services.vector_service import vector_service
+
+    if not vector_service.available:
+        return {"path": path, "related": []}
+
+    # Get chunks for the current note
+    note_chunks = vector_service.get_chunks_for_notes([path], max_per_note=3)
+    if not note_chunks:
+        return {"path": path, "related": []}
+
+    # Embed and search for each chunk, aggregate scores by note_path
+    hit_counter: dict[str, float] = defaultdict(float)
+    hit_titles: dict[str, str] = {}
+
+    for point in note_chunks:
+        content = point.payload.get("content", "")
+        if not content:
+            continue
+        query_vec = await embedding_service.embed_query(content)
+        hits = vector_service.search(query_vec, limit=10, type_filter="chunk")
+        for hit in hits:
+            hit_path = hit.payload.get("note_path", "")
+            if hit_path == path:
+                continue  # Skip self
+            hit_counter[hit_path] += hit.score
+            hit_titles[hit_path] = hit.payload.get("note_title", "")
+
+    # Average scores
+    num_queries = len(note_chunks)
+    for p in hit_counter:
+        hit_counter[p] /= num_queries
+
+    # Sort and return top
+    sorted_related = sorted(hit_counter.items(), key=lambda x: -x[1])[:limit]
+    related = [
+        {"path": p, "title": hit_titles.get(p, ""), "score": round(s, 4)}
+        for p, s in sorted_related
+    ]
+    return {"path": path, "related": related}

@@ -48,7 +48,8 @@ export const api = {
     }),
 
     // Search
-    search: (query, limit = 20) => request(`/search?q=${encodeURIComponent(query)}&limit=${limit}`),
+    search: (query, limit = 20, mode = 'hybrid') =>
+        request(`/search?q=${encodeURIComponent(query)}&limit=${limit}&mode=${encodeURIComponent(mode)}`),
 
     // Graph
     getGraph: (filters = {}) => {
@@ -108,4 +109,8 @@ export const api = {
         request(`/inbox/${encodeURIComponent(date)}/${encodeURIComponent(entryId)}/archive`, {
             method: 'POST',
         }),
+
+    // Related Notes
+    getRelatedNotes: (path, limit = 5) =>
+        request(`/notes/${encodeURI(path)}/related?limit=${limit}`),
 };

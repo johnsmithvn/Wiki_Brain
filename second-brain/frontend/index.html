@@ -265,6 +265,12 @@
                     <div style="font-size:var(--text-xs);color:var(--text-muted)">No backlinks</div>
                 </div>
             </div>
+            <div class="right-panel-section">
+                <div class="right-panel-title">Related Notes</div>
+                <div id="related-notes-list">
+                    <div style="font-size:var(--text-xs);color:var(--text-muted)">Open a note to see related</div>
+                </div>
+            </div>
         </aside>
     </div>
 
@@ -274,6 +280,11 @@
             <div class="modal-header">
                 <i data-lucide="search"></i>
                 <input class="modal-search-input" id="search-input" type="text" placeholder="Search notes... (type / for commands)" autofocus>
+                <div class="search-mode-toggle" id="search-mode-toggle">
+                    <button class="search-mode-btn active" data-mode="hybrid" title="Hybrid search (keyword + semantic)">Hybrid</button>
+                    <button class="search-mode-btn" data-mode="semantic" title="Semantic search (meaning-based)">Semantic</button>
+                    <button class="search-mode-btn" data-mode="keyword" title="Keyword search (exact match)">Keyword</button>
+                </div>
             </div>
             <div class="modal-body" id="search-results">
                 <div style="padding:var(--sp-4);text-align:center;color:var(--text-muted);font-size:var(--text-sm)">
