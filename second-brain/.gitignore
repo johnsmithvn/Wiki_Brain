@@ -57,6 +57,9 @@ node_modules/
 # Uncomment the line below if you DON'T want to track your notes in git
 # knowledge/
 
+# === Docker local data ===
+docker-data/
+
 # === Misc ===
 *.bak
 *.tmp

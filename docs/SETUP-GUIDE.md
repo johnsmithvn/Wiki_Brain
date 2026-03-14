@@ -208,6 +208,86 @@ second-brain/
 └── README.md
 ```
 
+### 4.5 🔒 Setup project-local (KHÔNG cài global)
+
+> **Mục tiêu:** Ollama, Qdrant, Embedding model — tất cả nằm trong thư mục project.
+> **Yêu cầu:** Chỉ cần **Docker Desktop** (duy nhất cài global).
+
+**Bước 1: Copy `.env.example` → `.env`**
+
+```bash
+cp .env.example .env
+```
+
+Sửa file `.env` để embedding model cache vào project:
+```ini
+# Giữ HuggingFace model trong project (thay vì ~/.cache/)
+HF_HOME=./docker-data/huggingface
+SENTENCE_TRANSFORMERS_HOME=./docker-data/sentence-transformers
+```
+
+**Bước 2: Start Ollama + Qdrant qua Docker Compose**
+
+```bash
+# Start cả 2 services
+docker compose up -d
+
+# Kiểm tra (cả 2 nên "running"):
+docker compose ps
+```
+
+**Bước 3: Download LLM model vào Docker container**
+
+```bash
+# Chạy lệnh ollama bên trong container (KHÔNG cần cài Ollama global)
+docker compose exec ollama ollama pull qwen2.5:7b-instruct-q4_K_M
+
+# Kiểm tra:
+docker compose exec ollama ollama list
+```
+
+**Bước 4: Start app**
+
+```bash
+python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+**Tất cả data lưu ở đâu?**
+
+```
+second-brain/
+├── docker-data/              ← TẠO TỰ ĐỘNG bởi Docker Compose
+│   ├── ollama/               ← Ollama models (~5GB)
+│   ├── qdrant/               ← Vector embeddings
+│   ├── huggingface/          ← BGE-M3 model (~2.3GB)
+│   └── sentence-transformers/ ← Model cache
+├── knowledge/                ← Notes của bạn
+└── ...
+```
+
+> ✅ **Xóa project = xóa sạch mọi thứ.** Không rác global.
+> ✅ `docker-data/` đã có trong `.gitignore` — không push lên git.
+
+**Bước 5: Dừng services**
+
+```bash
+docker compose down          # Stop containers
+docker compose down -v       # Stop + xóa data (cẩn thận!)
+```
+
+**So sánh 2 cách setup:**
+
+| | Global Install | Project-Local (Docker) |
+|---|---|---|
+| Cài Ollama | ✅ Cài trên hệ thống | ❌ Chạy trong Docker |
+| Ollama CLI | `ollama list` | `docker compose exec ollama ollama list` |
+| Model lưu ở | `~/.ollama/` | `./docker-data/ollama/` |
+| Embedding lưu ở | `~/.cache/huggingface/` | `./docker-data/huggingface/` |
+| Xóa project | Rác còn lại | Sạch 100% |
+| GPU support | Tự động | Cần uncomment deploy section |
+
+> ⚠️ **GPU trong Docker (Windows):** Docker Desktop cần WSL2 backend + NVIDIA Container Toolkit. Chi tiết: https://docs.nvidia.com/ai-enterprise/deployment-guide-wsl2/latest/index.html
+
 ---
 
 ## 5. Cài đặt & cấu hình Ollama (AI Model)
