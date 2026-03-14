@@ -19,7 +19,6 @@ from backend.services.link_service import link_service
 from backend.services.llm_service import llm_service
 from backend.services.rag_service import (
     SYSTEM_PROMPT,
-    build_context,
     retrieve_context,
 )
 

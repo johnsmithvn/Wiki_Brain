@@ -12,7 +12,6 @@ from backend.models.schemas import (
     NoteUpdate,
 )
 from backend.services.file_service import file_service
-from backend.services.index_service import index_service
 from backend.services.link_service import link_service
 from backend.services.note_pipeline import note_pipeline
 from backend.services.rename_service import rename_service
@@ -107,7 +106,7 @@ async def rename_note(path: str, data: NoteRename):
     try:
         content = await file_service.read_file(path)
         # Propagate wiki-link rewrites BEFORE removing old index entries
-        updated_count = await rename_service.propagate_rename(path, data.new_path)
+        await rename_service.propagate_rename(path, data.new_path)
 
         metadata = await file_service.rename_file(path, data.new_path)
         # Remove old index entries, re-index under new path

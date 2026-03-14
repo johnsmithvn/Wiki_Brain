@@ -92,7 +92,7 @@ def _collect_sections(tokens: list) -> list[dict]:
                 current_lines = []
 
             # Extract heading text from inline token
-            level = tok.tag  # h1, h2, ...
+            _level = tok.tag  # h1, h2, ...  # noqa: F841
             heading_text = ""
             if i + 1 < len(tokens) and tokens[i + 1].type == "inline":
                 heading_text = tokens[i + 1].content

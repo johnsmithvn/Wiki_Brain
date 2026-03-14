@@ -1,5 +1,4 @@
 import asyncio
-from collections import defaultdict
 
 from fastapi import APIRouter, Query
 

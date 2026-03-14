@@ -3,7 +3,6 @@
 from fastapi import APIRouter
 
 from backend.services.index_service import index_service
-from backend.services.link_service import link_service
 from backend.services.watcher_service import watcher_service
 
 router = APIRouter(tags=["health"])
