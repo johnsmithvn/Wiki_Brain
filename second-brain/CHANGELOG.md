@@ -1,5 +1,34 @@
 # Changelog
 
+## v0.8.0 (2026-03-12) — Phase 4: RAG Chat & AI Assistant
+
+### Added — Sprint 7: RAG Core (T31-T35)
+- **LLM service** (`llm_service.py`): Async Ollama streaming client via httpx. `generate_stream()` yields tokens from `/api/chat`. Configurable model/URL via `SB_OLLAMA_URL` / `SB_LLM_MODEL` env vars. Default: Qwen2.5 7B Q4_K_M.
+- **Graph expansion service** (`graph_expansion_service.py`): BFS 1-hop expansion from seed notes using wiki-link graph (`link_service._forward/_backward`). `expand_notes(seeds, depth=1, max_neighbors=5)` discovers structurally related notes that vector search might miss. `graph_proximity_score()` returns 1.0/0.7/0.0 for seed/1-hop/unconnected.
+- **RAG service** (`rag_service.py`): Full retrieval pipeline — vector search top-10 → extract seed notes → graph expand 1-hop → get neighbor chunks (max 2/note) → weighted scoring (0.6v + 0.3g + 0.1k) → select within 2000-token budget → build context grouped by note. Keyword-only fallback when Qdrant unavailable.
+- **Chat API** (`chat.py`): `POST /api/chat` — SSE streaming RAG chat. `POST /api/chat/summarize` — stream LLM summary of a note. `POST /api/chat/suggest-links` — find related notes not already linked.
+- **Chat schemas**: `ChatRequest`, `ChatSource`, `SummarizeRequest`, `SuggestLinksRequest` in `schemas.py`.
+
+### Added — Sprint 8: Multi-mode AI (T36-T38)
+- **Summary mode**: Streams LLM summary of any note via `/api/chat/summarize`.
+- **Auto-link suggestion**: `/api/chat/suggest-links` embeds note content → vector search → filters out already-linked notes → returns top-5 suggestions.
+- **Mode selector UI**: Chat panel dropdown (Chat / Summary / Suggest Links). Alt+C keyboard shortcut to toggle.
+
+### Added — Frontend
+- **Chat panel** (`chat.js`, `chat.css`): Sliding panel with message history, SSE streaming display with typing indicator, clickable source links, mode selector dropdown. Auto-resize textarea input.
+- **Chat button**: Top bar icon button with Alt+C keyboard shortcut.
+- **API client**: Added `chatStream()`, `summarizeStream()`, `suggestLinks()` methods.
+
+### Changed
+- **`backend/config/__init__.py`**: Added `OLLAMA_URL` and `LLM_MODEL` settings. Version → `0.8.0`.
+- **`backend/main.py`**: Registered `chat.router`.
+- **`index.html`**: Added chat panel HTML, CSS link, JS module, toggle button.
+- **`app.js`**: Integrated chat module init and Alt+C shortcut.
+
+### Tests
+- **27 new Phase 4 tests** (`test_phase4_rag.py`): Graph expansion (6), graph proximity scoring (5), RAG service (8), LLM service (2), Chat API (4), system prompt (2).
+- **179 total tests passing**.
+
 ## v0.7.0 (2026-03-12) — Phase 3: Semantic Search (Backend)
 
 ### Added — Sprint 5: Embedding Pipeline

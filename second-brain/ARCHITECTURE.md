@@ -23,6 +23,7 @@ This layer handles incoming HTTP requests, input validation, and HTTP responses.
 - `assets.py`: Image upload handling with unique filename generation.
 - `capture.py`: Zero-friction capture endpoint (`POST /api/capture`) — accepts text/URL from any source (browser, quick-capture, Telegram).
 - `inbox.py`: Inbox CRUD — list dates, get entries, convert to note, delete, archive.
+- `chat.py`: RAG chat with SSE streaming (`POST /api/chat`), note summarization (`POST /api/chat/summarize`), link suggestions (`POST /api/chat/suggest-links`).
 - `health.py`: Service readiness health check.
 
 ### 2. Service Layer (`backend/services/`)
@@ -41,6 +42,9 @@ This layer contains the core business logic, decoupled from HTTP concerns.
 - `chunker_service.py`: Markdown → semantic chunks using markdown-it-py AST. Pure function, no side effects.
 - `embedding_service.py`: Singleton BGE-M3 embedding model. Lazy loading, async batch embedding via `asyncio.to_thread()`.
 - `vector_service.py`: Qdrant client wrapper. Collection lifecycle, per-note upsert/delete, vector search with filters.
+- `llm_service.py`: Ollama LLM client with async SSE streaming. Supports `generate_stream()` and `generate()`.
+- `graph_expansion_service.py`: BFS 1-hop expansion from seed notes via wiki-link graph for RAG context enrichment.
+- `rag_service.py`: Full RAG retrieval pipeline — vector search → graph expansion → chunk scoring (0.6v + 0.3g + 0.1k) → context building (≤2000 tokens).
 
 ### 3. Application Entrypoint (`backend/main.py`)
 - Initializes global services during `lifespan` startup.
@@ -84,34 +88,27 @@ The frontend uses Vanilla Javascript modules (`ES6`) to keep the application lig
 - **Path Traversal Protection**: `file_service.py` enforces that all manipulated paths fall strictly under the `KNOWLEDGE_DIR` root using Python's `Path.relative_to()`. Hidden folders (e.g., `_assets/`) are excluded from file tree views.
 - **Cache-Control**: FastAPI sets `Cache-Control: no-cache` middleware during development to prevent aggressive browser caching masking recent JS updates.
 
-## Upcoming: Phase 3 — Semantic Search (Backend Complete ✅)
+## Phase 4 — RAG Chat & AI Assistant (Complete ✅)
 
-Phase 3 adds semantic search capabilities. Backend services implemented, frontend UI pending.
+Phase 4 adds local LLM-powered chat with graph-enhanced retrieval.
 
 ### New Services
 
 | File | Purpose |
 |------|---------|
-| `backend/services/chunker_service.py` | Markdown → semantic chunks (heading/paragraph, 120-450 tokens). Pure function via markdown-it-py AST. |
-| `backend/services/embedding_service.py` | Chunks → vectors via BGE-M3 (1024-dim, multilingual). Lazy model loading, async batch processing. |
-| `backend/services/vector_service.py` | Qdrant CRUD (upsert per note, search, delete). Content hash for dedup. Doc summary support. |
-| `backend/config/retrieval.py` | Tunable retrieval fusion weights (vector/graph/keyword), chunk sizes, debounce config. |
-
-### Updated Services
-
-| File | Changes |
-|------|---------|
-| `backend/services/note_pipeline.py` | Now orchestrates: tags → links → FTS index → **embedding** (debounced 2s). Chunks + embeds after FTS update. |
-| `backend/api/search.py` | 3 search modes: `keyword` (FTS only), `semantic` (vector only), `hybrid` (weighted fusion 0.7v + 0.3k). Falls back to keyword if Qdrant unavailable. |
-| `backend/api/notes.py` | New `GET /api/notes/{path}/related` endpoint — returns top-N semantically similar notes. |
-| `backend/api/health.py` | Now reports `vector` service status and collection info. |
-| `backend/main.py` | Lifespan startup initializes embedding model + Qdrant collection (graceful degradation on failure). |
+| `backend/services/llm_service.py` | Ollama async streaming client (httpx). Qwen2.5 7B Q4_K_M default model. |
+| `backend/services/graph_expansion_service.py` | BFS 1-hop expansion from wiki-link graph. Graph proximity scoring. |
+| `backend/services/rag_service.py` | Full retrieval pipeline: vector search → graph expand → weighted scoring → token-limited context building. |
+| `backend/api/chat.py` | SSE streaming chat endpoint, note summarization, auto-link suggestion. |
+| `frontend/js/chat.js` | Chat UI module — streaming display, source links, mode selector (Chat/Summary/Suggest). |
+| `frontend/css/chat.css` | Chat panel styles. |
 
 ### Key Design Decisions
 
-Documented in `docs/DESIGN-chunking-retrieval.md`:
-- Embedding debounce (2s) to avoid GPU spam on rapid saves
-- Retrieval weights configurable via `backend/config/retrieval.py`, not hardcoded
-- Chunk sizes: MAX=450, TARGET=300, MIN=120 tokens
-- Hybrid search: min-max normalization before weighted score fusion
-- Graceful degradation: all Phase 3 features no-op if Qdrant/model unavailable
+Documented in `docs/DESIGN-graph-vector-reasoning.md`:
+- **Graph+Vector hybrid**: Vector search finds semantically similar chunks, graph expansion discovers structurally related (linked) notes that vector search might miss.
+- **Scoring formula**: `0.6 * vector_score + 0.3 * graph_proximity + 0.1 * keyword_overlap`
+- **Context budget**: ≤2000 tokens, grouped by note path with `[Source: path]` headers.
+- **System prompt**: 5 rules — use only sources, admit gaps, cite notes, match language, be concise.
+- **Graceful degradation**: Chat returns 503 when Ollama unavailable. Suggest-links returns empty without Qdrant. Keyword fallback when vector unavailable.
+- **SSE streaming**: Tokens streamed via `data: {"token": "..."}` events, sources sent at end with `{"sources": [...], "done": true}`.

@@ -164,3 +164,30 @@ class ScrapedArticle(BaseModel):
     word_count: int = 0
     reading_time: int = 0  # minutes
 
+
+# ── Chat & RAG (Phase 4) ─────────────────────────────────────────
+
+
+class ChatRequest(BaseModel):
+    """Body for POST /api/chat."""
+    question: str
+    conversation_id: str | None = None
+    mode: str = "chat"  # "chat" | "summary" | "suggest-links"
+
+
+class ChatSource(BaseModel):
+    path: str
+    title: str = ""
+
+
+class SummarizeRequest(BaseModel):
+    """Body for POST /api/chat/summarize."""
+    note_path: str
+
+
+class SuggestLinksRequest(BaseModel):
+    """Body for POST /api/chat/suggest-links."""
+    note_path: str
+    content: str
+
+

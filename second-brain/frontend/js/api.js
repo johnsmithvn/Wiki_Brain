@@ -113,4 +113,25 @@ export const api = {
     // Related Notes
     getRelatedNotes: (path, limit = 5) =>
         request(`/notes/${encodeURI(path)}/related?limit=${limit}`),
+
+    // Chat (Phase 4)
+    chatStream: (question, mode = 'chat') => {
+        return fetch(`${BASE}/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question, mode }),
+        });
+    },
+    summarizeStream: (notePath) => {
+        return fetch(`${BASE}/chat/summarize`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ note_path: notePath }),
+        });
+    },
+    suggestLinks: (notePath, content) =>
+        request('/chat/suggest-links', {
+            method: 'POST',
+            body: JSON.stringify({ note_path: notePath, content }),
+        }),
 };

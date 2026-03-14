@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="/css/template-modal.css">
     <link rel="stylesheet" href="/css/graph-filter.css">
     <link rel="stylesheet" href="/css/inbox.css">
+    <link rel="stylesheet" href="/css/chat.css">
 
     <!-- Marked.js -->
     <script src="https://cdn.jsdelivr.net/npm/marked@15.0.0/marked.min.js"></script>
@@ -115,6 +116,9 @@
                     <span>Second Brain</span>
                 </div>
                 <div class="topbar-actions">
+                    <button class="icon-btn" id="btn-toggle-chat" title="Toggle AI Chat (Alt+C)">
+                        <i data-lucide="message-circle"></i>
+                    </button>
                     <button class="icon-btn" id="btn-shortcuts-help" title="Keyboard shortcuts">
                         <i data-lucide="keyboard"></i>
                     </button>
@@ -272,6 +276,34 @@
                 </div>
             </div>
         </aside>
+
+        <!-- CHAT PANEL -->
+        <aside class="chat-panel" id="chat-panel">
+            <div class="chat-header">
+                <div class="chat-header-title">
+                    <i data-lucide="bot" style="width:16px;height:16px;color:var(--accent)"></i>
+                    <span>AI Chat</span>
+                </div>
+                <select class="chat-mode-select" id="chat-mode-select">
+                    <option value="chat">Chat</option>
+                    <option value="summary">Summary</option>
+                    <option value="suggest-links">Suggest Links</option>
+                </select>
+            </div>
+            <div class="chat-messages" id="chat-messages">
+                <div class="chat-empty">
+                    <i data-lucide="sparkles" style="width:40px;height:40px;color:var(--accent)"></i>
+                    <h4>AI Assistant</h4>
+                    <p>Ask questions about your knowledge vault.<br>Uses your notes as context.</p>
+                </div>
+            </div>
+            <div class="chat-input-area">
+                <textarea class="chat-input" id="chat-input" rows="1" placeholder="Ask about your notes..."></textarea>
+                <button class="chat-send-btn" id="chat-send-btn" title="Send (Enter)">
+                    <i data-lucide="send" style="width:16px;height:16px"></i>
+                </button>
+            </div>
+        </aside>
     </div>
 
     <!-- Search Modal -->
@@ -315,6 +347,7 @@
     <script type="module" src="/js/slash-menu.js"></script>
     <script type="module" src="/js/template-modal.js"></script>
     <script type="module" src="/js/shortcuts-modal.js"></script>
+    <script type="module" src="/js/chat.js"></script>
     <script type="module" src="/js/app.js"></script>
 </body>
 </html>

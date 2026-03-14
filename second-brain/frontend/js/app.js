@@ -16,6 +16,7 @@ import { initInbox, loadInbox, handleInboxKeyboard } from './inbox.js';
 import { initSlashMenu } from './slash-menu.js';
 import { openTemplateModal } from './template-modal.js';
 import { openShortcutsModal } from './shortcuts-modal.js';
+import { initChat, toggleChat } from './chat.js';
 
 const EXTERNAL_SYNC_MS = 4000;
 
@@ -52,6 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
     });
     initSlashMenu();
+    initChat({ onSelect: openNote });
 
     document.getElementById('btn-daily-note')?.addEventListener('click', openDailyNote);
 
@@ -70,6 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('btn-shortcuts-help')?.addEventListener('click', openShortcutsModal);
     document.getElementById('btn-toggle-right-panel').addEventListener('click', toggleRightPanel);
+    document.getElementById('btn-toggle-chat')?.addEventListener('click', toggleChat);
 });
 
 // ---- Note Operations ----
@@ -511,6 +514,12 @@ function handleGlobalShortcuts(e) {
     if (e.altKey && e.key.toLowerCase() === 'd') {
         e.preventDefault();
         openDailyNote();
+        return;
+    }
+
+    if (e.altKey && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        toggleChat();
         return;
     }
 

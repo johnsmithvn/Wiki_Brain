@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from backend.api import assets, capture, daily, graph, health, inbox, notes, search, tags, templates
+from backend.api import assets, capture, chat, daily, graph, health, inbox, notes, search, tags, templates
 from backend.config import settings
 from backend.services.file_service import file_service
 from backend.services.index_service import index_service
@@ -140,6 +140,7 @@ async def add_cache_control_header(request, call_next):
 app.include_router(health.router)
 app.include_router(capture.router)
 app.include_router(inbox.router)
+app.include_router(chat.router)
 app.include_router(notes.router)
 app.include_router(search.router)
 app.include_router(graph.router)
